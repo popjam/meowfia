@@ -2,7 +2,18 @@
   "permissions": {
     "allow": [
       "Bash(git init)",
-      "Bash(git add .)"
+      "Bash(git add .)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Basic Android project structure for Meowfia app\n\n- Created project-level and app-level build.gradle files\n- Added MainActivity with basic layout\n- Configured AndroidManifest.xml with app settings\n- Added basic resource files (strings, colors, themes)\n- Included proper .gitignore for Android projects\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(gh repo create meowfia --public --description \"An Android app for the Meowfia game\" --source=.)",
+      "Bash(./gradlew build --info)",
+      "Bash(gradlew.bat build)",
+      "Bash(git remote add origin https://github.com/popjam/meowfia.git)",
+      "Bash(git branch -M main)",
+      "Bash(git push -u origin main)",
+      "Bash(git push -u origin main --force)",
+      "Bash(claude:*)",
+      "Bash(winget show:*)",
+      "Bash(npm view:*)"
     ],
     "deny": [],
     "ask": []
