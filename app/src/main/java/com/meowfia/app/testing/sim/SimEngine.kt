@@ -1,6 +1,7 @@
 package com.meowfia.app.testing.sim
 
 import com.meowfia.app.bot.BotBrain
+import com.meowfia.app.bot.BotClaimGenerator
 import com.meowfia.app.data.model.Alignment
 import com.meowfia.app.data.model.NightAction
 import com.meowfia.app.data.model.Player
@@ -191,6 +192,35 @@ class SimEngine(private val config: SimConfig) {
                 }
             }
         }
+
+        // Generate claims for solvability analysis
+        val farmRolesInPool = pool.map { it.roleId }.filter { it.isFarmAnimal }
+        val claims = mutableMapOf<Int, ClaimData>()
+        for (sp in simPlayers) {
+            val claim = BotClaimGenerator.generateClaim(
+                bot = sp.player,
+                allPlayers = gameState.players,
+                dawnReport = dawnReports.find { it.playerId == sp.id }!!,
+                visitGraph = coordinator.state.visitGraph,
+                pool = farmRolesInPool,
+                random = random
+            )
+            claims[sp.id] = ClaimData(
+                playerId = sp.id,
+                claimedRole = claim.claimedRole,
+                claimedTargetId = gameState.players.find { it.name == claim.claimedTargetName }?.id,
+                claimedEggDelta = claim.claimedEggDelta
+            )
+        }
+
+        // Solvability analysis
+        log.solvability = RoundSolver.analyze(
+            claims = claims,
+            pool = pool.map { it.roleId },
+            dawnReports = dawnReports,
+            assignments = assignments,
+            visitGraph = coordinator.state.visitGraph
+        )
 
         // Voting (simulated)
         val votingResult = votingResolver.resolve(simPlayers, assignments, dawnReports, random)
