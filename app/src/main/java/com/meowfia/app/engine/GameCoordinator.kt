@@ -135,16 +135,16 @@ class GameCoordinator(
         resolveAutoTargets()
 
         resolvedContext = nightResolver.resolve(state)
-        val nightResults = resolvedContext!!.buildNightResults()
 
-        // Update player egg counts from resolution
-        val updatedPlayers = state.players.map { player ->
-            val newNestCount = resolvedContext!!.getNestCount(player.id)
-            player.copy(nestEggCount = newNestCount)
+        // Apply flower pre-resolution effects (e.g. Wolfsbane +1 egg for Meowfia)
+        for (flowerId in state.activeFlowers) {
+            val handler = FlowerRegistry.get(flowerId) ?: continue
+            handler.applyPreResolution(resolvedContext!!, state)
         }
 
+        val nightResults = resolvedContext!!.buildNightResults()
+
         _state = state.copy(
-            players = updatedPlayers,
             nightResults = nightResults,
             phase = GamePhase.DAWN
         )

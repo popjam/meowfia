@@ -44,7 +44,7 @@ class SimEngine(private val config: SimConfig) {
 
         // Deal starting hands
         for (sp in simPlayers) {
-            repeat(3) { if (deck.isNotEmpty()) sp.hand.add(deck.removeFirst()) }
+            repeat(3) { if (deck.isNotEmpty()) sp.hand.add(deck.removeAt(0)) }
         }
 
         logger.header("MEOWFIA SIMULATION — Seed: ${random.seed}")
@@ -56,14 +56,6 @@ class SimEngine(private val config: SimConfig) {
         val roleAssignmentCounts = mutableMapOf<RoleId, Int>()
         val roleEggTotals = mutableMapOf<RoleId, MutableList<Int>>()
         val alignmentWins = mutableMapOf(Alignment.FARM to 0, Alignment.MEOWFIA to 0)
-        val suitThrows = mutableMapOf<Suit, Int>()
-        val suitWins = mutableMapOf<Suit, Int>()
-        val suitLosses = mutableMapOf<Suit, Int>()
-        val clubGiftedValues = mutableListOf<Int>()
-        var spadeSteals = 0
-        var spadeGives = 0
-        var diamondLocks = 0
-        var diamondDemotes = 0
         var zeroMeowfiaRounds = 0
         var allMeowfiaRounds = 0
 
@@ -82,25 +74,6 @@ class SimEngine(private val config: SimConfig) {
 
             roundLog.votingResult?.let { vr ->
                 alignmentWins[vr.winningTeam] = (alignmentWins[vr.winningTeam] ?: 0) + 1
-                for ((_, cards) in vr.thrown) {
-                    for (card in cards) {
-                        suitThrows[card.suit] = (suitThrows[card.suit] ?: 0) + 1
-                    }
-                }
-            }
-
-            for (event in roundLog.scoringEvents) {
-                if (event.suit != null) {
-                    if (event.isWin) suitWins[event.suit] = (suitWins[event.suit] ?: 0) + 1
-                    else suitLosses[event.suit] = (suitLosses[event.suit] ?: 0) + 1
-                }
-                if (event.description.contains("gifted")) {
-                    clubGiftedValues.add(event.cardValue)
-                }
-                if (event.description.contains("Spade stole")) spadeSteals++
-                if (event.description.contains("gave")) spadeGives++
-                if (event.description.contains("locked")) diamondLocks++
-                if (event.description.contains("demoted")) diamondDemotes++
             }
         }
 
@@ -118,14 +91,6 @@ class SimEngine(private val config: SimConfig) {
             alignmentWins = alignmentWins,
             zeroMeowfiaRounds = zeroMeowfiaRounds,
             allMeowfiaRounds = allMeowfiaRounds,
-            suitThrows = suitThrows,
-            suitWins = suitWins,
-            suitLosses = suitLosses,
-            clubGiftedValues = clubGiftedValues,
-            spadeSteals = spadeSteals,
-            spadeGives = spadeGives,
-            diamondLocks = diamondLocks,
-            diamondDemotes = diamondDemotes,
             fullLog = logger.getFullLog()
         )
     }
@@ -141,7 +106,7 @@ class SimEngine(private val config: SimConfig) {
         val log = SimRoundLog(roundNum = roundNum)
 
         // Pool setup
-        repeat(3) { if (deck.isNotEmpty()) discard.add(deck.removeFirst()) }
+        repeat(3) { if (deck.isNotEmpty()) discard.add(deck.removeAt(0)) }
 
         val pool = config.forcedPool?.map { PoolCard(it) }
             ?: generateRandomPool()
@@ -176,7 +141,7 @@ class SimEngine(private val config: SimConfig) {
 
         // Draw 2 cards
         for (sp in simPlayers) {
-            repeat(2) { if (deck.isNotEmpty()) sp.hand.add(deck.removeFirst()) }
+            repeat(2) { if (deck.isNotEmpty()) sp.hand.add(deck.removeAt(0)) }
         }
 
         // Night phase (real engine)
@@ -208,10 +173,19 @@ class SimEngine(private val config: SimConfig) {
         }
         log.dawnReports = dawnReports
 
+        // v6: draw or discard based on egg delta
         for (report in dawnReports) {
             val sp = simPlayers[report.playerId]
-            val eggsToDraw = report.reportedNestEggs.coerceIn(0, 5)
-            repeat(eggsToDraw) { if (deck.isNotEmpty()) sp.hand.add(deck.removeFirst()) }
+            val delta = report.reportedEggDelta
+            if (delta > 0) {
+                repeat(delta.coerceAtMost(5)) { if (deck.isNotEmpty()) sp.hand.add(deck.removeAt(0)) }
+            } else if (delta < 0) {
+                repeat((-delta).coerceAtMost(sp.hand.size)) {
+                    if (sp.hand.isNotEmpty()) {
+                        discard.add(sp.hand.removeAt(random.nextInt(sp.hand.size)))
+                    }
+                }
+            }
         }
 
         // Voting (simulated)

@@ -36,6 +36,15 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
+
+    testOptions {
+        unitTests.all {
+            systemProperties System.properties.findAll { it.key.startsWith('sim.') }
+            testLogging {
+                showStandardStreams = true
+            }
+        }
+    }
 }
 
 dependencies {

@@ -11,16 +11,15 @@ object NightMetrics {
         val avgNetEggsPerRound: Double,
         val avgVisitsPerPlayer: Double,
         val avgVisitorsPerPlayer: Double,
-        val nestCapHits: Int,
         val hugBlocks: Int,
         val avgInfoLinesPerPlayer: Double,
-        val emptyNestRate: Double
+        val zeroEggDeltaRate: Double
     )
 
     fun analyze(results: List<SimGameResult>): NightStats {
         var totalRounds = 0
-        var totalEggs = 0
-        var totalEmptyNests = 0
+        var totalPositiveEggs = 0
+        var totalZeroDeltas = 0
         var totalPlayers = 0
         var totalInfoLines = 0
 
@@ -29,8 +28,8 @@ object NightMetrics {
                 totalRounds++
                 for (report in log.dawnReports) {
                     totalPlayers++
-                    totalEggs += report.actualNestEggs
-                    if (report.actualNestEggs == 0) totalEmptyNests++
+                    if (report.actualEggDelta > 0) totalPositiveEggs += report.actualEggDelta
+                    if (report.actualEggDelta == 0) totalZeroDeltas++
                     totalInfoLines += report.additionalInfo.size
                 }
             }
@@ -40,15 +39,14 @@ object NightMetrics {
         val safePlayers = totalPlayers.coerceAtLeast(1)
 
         return NightStats(
-            avgEggsCreatedPerRound = totalEggs.toDouble() / safeRounds,
+            avgEggsCreatedPerRound = totalPositiveEggs.toDouble() / safeRounds,
             avgEggsStolenPerRound = 0.0, // TODO: track steal events
-            avgNetEggsPerRound = totalEggs.toDouble() / safeRounds,
+            avgNetEggsPerRound = totalPositiveEggs.toDouble() / safeRounds,
             avgVisitsPerPlayer = 0.0, // TODO: track from visit graph
             avgVisitorsPerPlayer = 0.0,
-            nestCapHits = 0,
             hugBlocks = 0,
             avgInfoLinesPerPlayer = totalInfoLines.toDouble() / safePlayers,
-            emptyNestRate = totalEmptyNests.toDouble() / safePlayers
+            zeroEggDeltaRate = totalZeroDeltas.toDouble() / safePlayers
         )
     }
 }

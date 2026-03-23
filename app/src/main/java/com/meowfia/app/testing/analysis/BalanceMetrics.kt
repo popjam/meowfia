@@ -3,7 +3,7 @@ package com.meowfia.app.testing.analysis
 import com.meowfia.app.data.model.Alignment
 import com.meowfia.app.testing.sim.SimConfig
 import com.meowfia.app.testing.sim.SimGameResult
-import com.meowfia.app.testing.sim.Suit
+import kotlin.math.abs
 import kotlin.math.sqrt
 
 /** Computes all aggregate metrics from a batch of game results. */
@@ -48,28 +48,52 @@ object BalanceMetrics {
         val viableCount = strategyMeans.values.count { it >= bestMean * 0.8 }
         val viability = viableCount.toDouble() / strategyMeans.size.coerceAtLeast(1)
 
-        // Suit economics
-        val totalSuitThrows = mutableMapOf<Suit, Int>()
-        val totalSuitWins = mutableMapOf<Suit, Int>()
-        val totalSuitLosses = mutableMapOf<Suit, Int>()
-        var totalClubGifts = 0
-        var totalClubGiftValue = 0
-        var totalSpadeSteals = 0
-        var totalSpadeGives = 0
-        var totalDiamondLocks = 0
-        var totalDiamondDemotes = 0
-
+        // Catch-up rate: rank mobility from mid-game to final
+        val catchUpRates = mutableListOf<Double>()
         for (result in results) {
-            for ((suit, count) in result.suitThrows) totalSuitThrows[suit] = (totalSuitThrows[suit] ?: 0) + count
-            for ((suit, count) in result.suitWins) totalSuitWins[suit] = (totalSuitWins[suit] ?: 0) + count
-            for ((suit, count) in result.suitLosses) totalSuitLosses[suit] = (totalSuitLosses[suit] ?: 0) + count
-            totalClubGifts += result.clubGiftedValues.size
-            totalClubGiftValue += result.clubGiftedValues.sum()
-            totalSpadeSteals += result.spadeSteals
-            totalSpadeGives += result.spadeGives
-            totalDiamondLocks += result.diamondLocks
-            totalDiamondDemotes += result.diamondDemotes
+            val nPlayers = result.config.playerCount
+            val nRounds = result.roundLogs.size
+            if (nRounds < 3) continue
+
+            val midRoundIdx = nRounds / 2 - 1
+            // perRoundDeltas stores absolute post-round scores (despite the field name)
+            val midScores = result.perRoundDeltas.map { it.getOrElse(midRoundIdx) { 0 } }
+            val finalScores = result.finalScores
+
+            val midRanking = (0 until nPlayers).sortedByDescending { midScores[it] }
+            val finalRanking = (0 until nPlayers).sortedByDescending { finalScores[it] }
+
+            val rankDiff = (0 until nPlayers).sumOf { playerId ->
+                abs(midRanking.indexOf(playerId) - finalRanking.indexOf(playerId))
+            }
+            val maxDiff = nPlayers * (nPlayers - 1) / 2
+            catchUpRates.add(rankDiff.toDouble() / maxDiff.coerceAtLeast(1))
         }
+        val catchUpRate = if (catchUpRates.isNotEmpty()) catchUpRates.average() else 0.0
+
+        // Deduction correlation: correct-throw accuracy vs final score
+        val accuracies = mutableListOf<Double>()
+        val corrScores = mutableListOf<Double>()
+        for (result in results) {
+            val nPlayers = result.config.playerCount
+            for (playerIdx in 0 until nPlayers) {
+                var correctThrows = 0
+                var totalThrows = 0
+                for (roundLog in result.roundLogs) {
+                    val vr = roundLog.votingResult ?: continue
+                    val assignment = roundLog.assignments.find { it.playerId == playerIdx } ?: continue
+                    totalThrows++
+                    if (assignment.alignment == vr.winningTeam) {
+                        correctThrows++
+                    }
+                }
+                if (totalThrows > 0) {
+                    accuracies.add(correctThrows.toDouble() / totalThrows)
+                    corrScores.add(result.finalScores[playerIdx].toDouble())
+                }
+            }
+        }
+        val deductionCorrelation = pearson(accuracies, corrScores)
 
         // Alignment
         val totalFarmWins = results.sumOf { it.alignmentWins[Alignment.FARM] ?: 0 }
@@ -92,21 +116,12 @@ object BalanceMetrics {
             avgGini = allGinis.average(),
             skillPremium = skillPremium,
             aggroConsGap = aggroConsGap,
-            catchUpRate = 0.0, // TODO: implement rank mobility
-            deductionCorrelation = 0.0, // TODO: implement
+            catchUpRate = catchUpRate,
+            deductionCorrelation = deductionCorrelation,
             strategyViability = viability,
             strategySpread = bestMean - (strategyMeans.values.minOrNull() ?: 0.0),
             strategyMeans = strategyMeans,
             strategyStdDevs = strategyStdDevs,
-            suitThrows = totalSuitThrows,
-            suitWins = totalSuitWins,
-            suitLosses = totalSuitLosses,
-            clubGiftsTotal = totalClubGifts,
-            clubGiftsAvgValue = if (totalClubGifts > 0) totalClubGiftValue.toDouble() / totalClubGifts else 0.0,
-            spadeSteals = totalSpadeSteals,
-            spadeGives = totalSpadeGives,
-            diamondLocks = totalDiamondLocks,
-            diamondDemotes = totalDiamondDemotes,
             roleMetrics = roleMetrics,
             nightMetrics = nightMetrics,
             farmWinRate = if (totalRounds > 0) totalFarmWins.toDouble() / totalRounds else 0.5,

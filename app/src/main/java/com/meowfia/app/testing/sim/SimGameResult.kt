@@ -15,13 +15,5 @@ data class SimGameResult(
     val alignmentWins: Map<Alignment, Int>,
     val zeroMeowfiaRounds: Int,
     val allMeowfiaRounds: Int,
-    val suitThrows: Map<Suit, Int>,
-    val suitWins: Map<Suit, Int>,
-    val suitLosses: Map<Suit, Int>,
-    val clubGiftedValues: List<Int>,
-    val spadeSteals: Int,
-    val spadeGives: Int,
-    val diamondLocks: Int,
-    val diamondDemotes: Int,
     val fullLog: String
 )

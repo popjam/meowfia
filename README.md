@@ -12,12 +12,7 @@ Meowfia is a 4–8 player tabletop game of bluffing, deduction, and calculated g
 
 Most social deduction games split the table into two teams that stay fixed for the whole game. Meowfia doesn't. Alignments are re-rolled every round — each player has an independent 1-in-3 chance of being Meowfia. That means there might be zero cats, one cat, five cats, or a table full of cats. Nobody knows the count, and Meowfia players don't know who else is Meowfia. The paranoia is real.
 
-The other twist is the scoring. Meowfia isn't about surviving — it's about accumulating points across multiple rounds. When you vote to eliminate someone, you're literally throwing cards from your hand at them. The suits on those cards determine what happens to you depending on whether your team wins or loses:
-
-- **Hearts** are the safe bet — no penalty if you're wrong.
-- **Diamonds** are boom or bust — a win locks in bonus points, a loss pulls points back out of your score pile.
-- **Clubs** hit twice as hard as votes but gift your card to the target if you lose.
-- **Spades** let you steal from (or accidentally donate to) the player you accused.
+The other twist is the scoring. Meowfia isn't about surviving — it's about accumulating points across multiple rounds. When you vote to eliminate someone, you're literally throwing cards from your hand at them. Thrown cards are placed **face-down** — nobody sees what you risked. Higher-value cards are worth more in your score pile but cost more if you lose. The winning team banks all their thrown cards; the losing team discards theirs. But if you're on the losing team and you targeted someone on the opposite team, you get a consolation — your best thrown card comes back to your hand.
 
 The winner isn't the best liar or the best detective — it's the player who read the room most accurately and gambled accordingly.
 
@@ -26,16 +21,16 @@ The winner isn't the best liar or the best detective — it's the player who rea
 1. **Pool Phase** — The dealer reveals 3 cards from the deck. Their animal or flower artwork determines the available roles and special events for the round.
 2. **Setup Phase** — Players draw cards and the app secretly assigns each player an alignment and a role from the pool.
 3. **Night Phase** — Eyes closed, phone passed around. Each player reads their role's night action (visiting another player, laying eggs, stealing eggs, gathering information) and makes their choice.
-4. **Dawn Phase** — Phone passed again. Each player privately learns how many eggs are in their nest and any role-specific intel. Players draw cards equal to their egg count and place face-down cards as their visible nest.
+4. **Dawn Phase** — Phone passed again. Each player privately learns how many eggs they gained or lost and any role-specific intel. Players draw cards (if gained) or discard cards (if lost) accordingly.
 5. **Day Phase** — Five minutes of open discussion. Argue, accuse, bluff, deflect. Three "CAW CAW" calls trigger an early vote.
-6. **Voting (Eggsecution)** — No talking. Everyone secretly picks a target and cards to throw. Reveal simultaneously. Most votes gets eliminated. Winner is determined by the eliminated player's alignment.
-7. **Scoring** — Winning team banks thrown cards (face value → score pile). Losing team discards with suit penalties. Kept cards are worth 1 point each at game end.
+6. **Voting (Eggsecution)** — No talking. Everyone secretly picks a target and cards to throw. Reveal simultaneously — thrown cards are shown **face-down**. Most votes gets eliminated. Winner is determined by the eliminated player's alignment.
+7. **Scoring** — Winning team banks thrown cards face-down to score pile. Losing team discards thrown cards. Correct-target consolation returns best card to hand. Kept cards are worth 1 point each at game end.
 
 After the agreed number of rounds, the player with the highest score wins.
 
 ### Components
 
-- A 64-card deck (14 per suit + 8 wilds), where every card is both an egg (suit + value) and an animal/flower (role description + QR code)
+- A 64-card deck (14 per suit + 8 wilds), where every card is both an egg (value) and an animal/flower (role description + QR code)
 - Player colour tokens (one per player)
 - The Meowfia companion app on a single phone
 
@@ -52,7 +47,7 @@ The app tracks:
 - Player names and seating order
 - Secret alignment and role assignments (re-rolled each round)
 - Night visit targets and action resolution
-- Nest egg counts
+- Egg gain/loss deltas per round
 - Dawn reports with role-specific information
 - Day phase timer and early-vote tracking
 
@@ -108,7 +103,6 @@ The project includes a Python-based Monte Carlo simulation (`meowfia_test_harnes
 - Aggression vs. conservative balance
 - Catch-up rate (can losing players recover?)
 - Strategy viability (are multiple playstyles competitive?)
-- Suit economics (how often each suit is thrown, win/loss rates, and the real cost of Clubs and Diamonds)
 
 Run it with:
 
@@ -126,7 +120,8 @@ The app also includes an in-app test dashboard that can run simulated games usin
 
 | File | Description |
 |------|-------------|
-| `meowfia_rules_v5-1.md` | Complete official rules — setup, round flow, suit mechanics, scoring, strategy tips |
+| `meowfia_rules_v6.md` | Complete official rules (v6) — setup, round flow, value-based scoring, strategy tips |
+| `meowfia_rules_v5-1.md` | Historical rules (v5) — includes suit-based scoring mechanics |
 | `meowfia_app_outline-1.md` | Full app architecture — data models, role system, night resolution engine, UI screens, state machine, testing infrastructure |
 | `meowfia_test_harness.py` | Python scoring simulation — Monte Carlo balance testing with strategy archetypes and statistical analysis |
 
@@ -134,11 +129,11 @@ The app also includes an in-app test dashboard that can run simulated games usin
 
 ## Status
 
-The game rules (v5) are stable and playtested. The app architecture is designed and documented. Implementation is in progress, with the core engine (role resolution, assignment, dawn reports) as the current priority. The scoring test harness is functional and produces balance reports.
+The game rules (v6) are stable and playtested. The app architecture is designed and documented. Implementation is in progress, with the core engine (role resolution, assignment, dawn reports) as the current priority. The scoring test harness is functional and produces balance reports.
 
 ### Roadmap
 
 - **Now:** Core engine implementation (night resolver, role handlers, game coordinator)
 - **Next:** Android UI (pass-and-play screens, handoff gates, QR scanning)
 - **Then:** Additional Meowfia cat roles, flower event system, expanded farm animals
-- **Later:** Digital scorekeeper, wink/death mechanics, advanced roles (role-swapping, copying, confusion)
+- **Later:** Wink/death mechanics, advanced roles (role-swapping, copying, confusion)

@@ -87,7 +87,7 @@ fun RoundSummaryScreen(
                                 )
                             }
                             Text(
-                                text = "Visited: $visitedName · Eggs: ${player.nestEggCount}",
+                                text = "Visited: $visitedName",
                                 color = MeowfiaColors.TextSecondary,
                                 fontSize = 13.sp
                             )

@@ -8,37 +8,37 @@ object SimStrategyArchetypes {
     val AGGRESSIVE_SKILLED = SimStrategy(
         name = "Aggressive-Skilled",
         nightSkill = 0.80f, deduction = 0.80f,
-        aggression = 0.85f, suitSavvy = 0.75f
+        aggression = 0.85f
     )
 
     val AGGRESSIVE_UNSKILLED = SimStrategy(
         name = "Aggressive-Unskilled",
         nightSkill = 0.20f, deduction = 0.20f,
-        aggression = 0.85f, suitSavvy = 0.25f
+        aggression = 0.85f
     )
 
     val CONSERVATIVE_SKILLED = SimStrategy(
         name = "Conservative-Skilled",
         nightSkill = 0.80f, deduction = 0.80f,
-        aggression = 0.20f, suitSavvy = 0.85f
+        aggression = 0.20f
     )
 
     val CONSERVATIVE_UNSKILLED = SimStrategy(
         name = "Conservative-Unskilled",
         nightSkill = 0.20f, deduction = 0.20f,
-        aggression = 0.20f, suitSavvy = 0.20f
+        aggression = 0.20f
     )
 
     val BALANCED_SKILLED = SimStrategy(
         name = "Balanced-Skilled",
         nightSkill = 0.70f, deduction = 0.70f,
-        aggression = 0.50f, suitSavvy = 0.65f
+        aggression = 0.50f
     )
 
     val BALANCED_RANDOM = SimStrategy(
         name = "Balanced-Random",
         nightSkill = 0.35f, deduction = 0.35f,
-        aggression = 0.50f, suitSavvy = 0.35f
+        aggression = 0.50f
     )
 
     val ALL = listOf(

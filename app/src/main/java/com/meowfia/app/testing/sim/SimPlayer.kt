@@ -24,18 +24,6 @@ data class SimPlayer(
 
     fun scorePileValue(): Int = scorePile.sumOf { it.value }
 
-    fun moveBestScoreToHand() {
-        if (scorePile.isEmpty()) return
-        scorePile.sortByDescending { it.value }
-        hand.add(scorePile.removeFirst())
-    }
-
-    fun lockBestHandToScore() {
-        if (hand.isEmpty()) return
-        hand.sortByDescending { it.value }
-        scorePile.add(hand.removeFirst())
-    }
-
     /** Sync wrapper Player from engine assignments. */
     fun updateFromAssignment(alignment: Alignment, roleId: RoleId) {
         player = player.copy(alignment = alignment, roleId = roleId, originalRoleId = roleId)

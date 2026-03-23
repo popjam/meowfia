@@ -37,7 +37,7 @@ class SingleGameSimTest : SimTestBase() {
 
         println(result.fullLog)
         val hawkDawn = result.roundLogs[0].dawnReports.find { it.playerId == 0 }!!
-        assert(hawkDawn.actualNestEggs >= 1) { "Hawk should have gained at least 1 egg from finding Meowfia" }
+        assert(hawkDawn.actualEggDelta >= 1) { "Hawk should have gained at least 1 egg from finding Meowfia" }
     }
 
     @Test

@@ -29,15 +29,13 @@ class HawkHandler : RoleHandler {
 
         if (target.alignment == Alignment.MEOWFIA) {
             context.addEggs(actor.id, 1)
-            context.addInfo(actor.id, "${target.name} appears MEOWFIA. Egg gained.")
             context.log("${actor.name} (Hawk) investigates ${target.name} — MEOWFIA. Egg gained.")
         } else {
-            context.addInfo(actor.id, "${target.name} appears FARM.")
-            context.log("${actor.name} (Hawk) investigates ${target.name} — appears FARM.")
+            context.log("${actor.name} (Hawk) investigates ${target.name} — FARM. No egg.")
         }
     }
 
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
-        return context.getInfoFor(player.id)
+        return emptyList()
     }
 }

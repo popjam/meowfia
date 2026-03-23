@@ -10,14 +10,12 @@ import com.meowfia.app.util.RandomProvider
  * @param nightSkill  0.0–1.0 — How well this player uses night info.
  * @param deduction   0.0–1.0 — Probability of correctly identifying Meowfia during voting.
  * @param aggression  0.0–1.0 — How many cards thrown per vote.
- * @param suitSavvy   0.0–1.0 — How intelligently suits are prioritized.
  */
 data class SimStrategy(
     val name: String,
     val nightSkill: Float,
     val deduction: Float,
-    val aggression: Float,
-    val suitSavvy: Float
+    val aggression: Float
 ) {
     /** Choose who to visit during night phase. Returns null for auto-target roles. */
     fun chooseNightTarget(
@@ -79,7 +77,7 @@ data class SimStrategy(
         return candidates[random.nextInt(candidates.size)].id
     }
 
-    /** Choose which cards to throw and which to keep. */
+    /** Choose which cards to throw and which to keep. v6: purely value-based. */
     fun chooseThrow(
         hand: List<SimCard>,
         confidence: Float,
@@ -89,19 +87,11 @@ data class SimStrategy(
 
         val throwCount = maxOf(1, (hand.size * aggression).toInt())
 
-        // Sort by suit priority based on savvy
-        val sorted = if (random.nextFloat() < suitSavvy) {
-            hand.sortedBy { card ->
-                when (card.suit) {
-                    Suit.WILD -> 0     // best to throw
-                    Suit.HEARTS -> 1   // safe
-                    Suit.SPADES -> 2   // moderate risk
-                    Suit.DIAMONDS -> if (confidence > 0.6f) 3 else 6
-                    Suit.CLUBS -> if (confidence > 0.7f) 4 else 7
-                }
-            }
-        } else {
-            random.shuffle(hand)
+        // v6: sort by value — wilds first (0 risk), then low-value, then high-value
+        // Higher confidence makes the player willing to throw higher-value cards
+        val sorted = hand.sortedBy { card ->
+            if (card.suit == Suit.WILD) -100f
+            else card.value * (1f - confidence * 0.5f)
         }
 
         return ThrowDecision(

@@ -18,7 +18,7 @@ class ResolutionContext(
     val random: RandomProvider
 ) {
     companion object {
-        const val MAX_NEST_EGGS = 5
+        const val MAX_EGG_DELTA = 5
     }
 
     private val eggDeltas = mutableMapOf<Int, Int>()
@@ -71,10 +71,9 @@ class ResolutionContext(
         return effects[playerId]?.contains(StatusEffect.CONFUSED) == true
     }
 
-    /** Returns the nest count for a player: base + delta, clamped 0..MAX_NEST_EGGS. */
-    fun getNestCount(playerId: Int): Int {
-        val player = players.find { it.id == playerId } ?: return 0
-        return (player.nestEggCount + (eggDeltas[playerId] ?: 0)).coerceIn(0, MAX_NEST_EGGS)
+    /** Returns the egg delta for a player, clamped to -MAX_EGG_DELTA..MAX_EGG_DELTA. */
+    fun getClampedEggDelta(playerId: Int): Int {
+        return (eggDeltas[playerId] ?: 0).coerceIn(-MAX_EGG_DELTA, MAX_EGG_DELTA)
     }
 
     fun getInfoFor(playerId: Int): List<String> {
@@ -105,18 +104,18 @@ class ResolutionContext(
 
     fun buildDawnReports(): Map<Int, DawnReport> {
         return players.associate { player ->
-            val actual = getNestCount(player.id)
+            val actual = getClampedEggDelta(player.id)
             val reported = if (isConfused(player.id)) {
                 val offset = random.nextInt(1, 3) * if (random.nextFloat() > 0.5f) 1 else -1
-                (actual + offset).coerceIn(0, MAX_NEST_EGGS)
+                (actual + offset).coerceIn(-MAX_EGG_DELTA, MAX_EGG_DELTA)
             } else {
                 actual
             }
 
             player.id to DawnReport(
                 playerId = player.id,
-                reportedNestEggs = reported,
-                actualNestEggs = actual,
+                reportedEggDelta = reported,
+                actualEggDelta = actual,
                 additionalInfo = getInfoFor(player.id),
                 isConfused = isConfused(player.id)
             )

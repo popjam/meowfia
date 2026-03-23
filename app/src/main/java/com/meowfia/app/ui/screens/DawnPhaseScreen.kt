@@ -39,7 +39,7 @@ fun DawnPhaseScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Everyone open your eyes!\nPlace your nest eggs now.",
+                text = "Everyone open your eyes!",
                 color = MeowfiaColors.TextPrimary,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
@@ -75,27 +75,41 @@ fun DawnPhaseScreen(
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(16.dp))
+            val delta = report.reportedEggDelta
             Text(
-                text = "Your nest has",
+                text = if (delta >= 0) "You gained" else "You lost",
                 color = MeowfiaColors.TextSecondary,
                 fontSize = 18.sp
             )
             Text(
-                text = "${report.reportedNestEggs}",
+                text = "${kotlin.math.abs(delta)}",
                 color = MeowfiaColors.Primary,
                 fontSize = 64.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = if (report.reportedNestEggs == 1) "egg" else "eggs",
+                text = if (kotlin.math.abs(delta) == 1) "egg" else "eggs",
                 color = MeowfiaColors.TextSecondary,
                 fontSize = 18.sp
             )
+            if (delta >= 0) {
+                Text(
+                    text = "Draw $delta cards from the deck",
+                    color = MeowfiaColors.TextSecondary,
+                    fontSize = 15.sp
+                )
+            } else {
+                Text(
+                    text = "Discard ${kotlin.math.abs(delta)} cards from your hand",
+                    color = MeowfiaColors.TextSecondary,
+                    fontSize = 15.sp
+                )
+            }
 
             if (report.isConfused) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "(You're confused — this count may be inaccurate)",
+                    text = "(You're confused — this may be inaccurate)",
                     color = MeowfiaColors.Confused,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center

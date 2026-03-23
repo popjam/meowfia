@@ -78,7 +78,9 @@ class SimLogger(private val verbosity: Verbosity) {
         buffer.appendLine("  Dawn reports:")
         for (report in reports) {
             val name = players.find { it.id == report.playerId }?.name ?: "?"
-            buffer.appendLine("    $name: ${report.reportedNestEggs} eggs${if (report.isConfused) " (confused)" else ""}")
+            val delta = report.reportedEggDelta
+        val deltaStr = if (delta >= 0) "+$delta" else "$delta"
+        buffer.appendLine("    $name: ${deltaStr} eggs${if (report.isConfused) " (confused)" else ""}")
         }
     }
 

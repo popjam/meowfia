@@ -26,14 +26,14 @@ class HouseCatHandler : RoleHandler {
         }
         if (target == null) return
 
-        // Steal: if target has eggs, remove 1 from target, add 1 to self
-        val targetNest = context.getNestCount(target.id)
-        if (targetNest > 0) {
+        // Steal: if target has gained eggs this round, remove 1 from target, add 1 to self
+        val targetDelta = context.getEggDelta(target.id)
+        if (targetDelta > 0) {
             context.removeEggs(target.id, 1)
             context.addEggs(actor.id, 1)
             context.log("${actor.name} (House Cat) steals egg from ${target.name}.")
         } else {
-            context.log("${actor.name} (House Cat) visits ${target.name} — nest is empty, nothing to steal.")
+            context.log("${actor.name} (House Cat) visits ${target.name} — no eggs to steal.")
         }
 
         // Intel: learn target's role and who they visited

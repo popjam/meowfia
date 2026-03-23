@@ -20,8 +20,8 @@ class DawnReportGenerator {
         return players.associate { player ->
             val baseReport = baseReports[player.id] ?: DawnReport(
                 playerId = player.id,
-                reportedNestEggs = 0,
-                actualNestEggs = 0,
+                reportedEggDelta = 0,
+                actualEggDelta = 0,
                 additionalInfo = emptyList()
             )
 

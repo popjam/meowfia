@@ -7,7 +7,7 @@ import com.meowfia.app.util.RandomProvider
 
 /**
  * Simulates the physical voting phase and scoring resolution.
- * Uses v5 suit rules exactly.
+ * Uses v6 rules: no suit effects, uniform vote weight, consolation returns to hand.
  */
 class SimVotingResolver {
 
@@ -23,10 +23,7 @@ class SimVotingResolver {
 
     data class ScoringEvent(
         val playerId: Int,
-        val description: String,
-        val suit: Suit? = null,
-        val isWin: Boolean = false,
-        val cardValue: Int = 0
+        val description: String
     )
 
     fun resolve(
@@ -52,10 +49,8 @@ class SimVotingResolver {
             thrown[sp.id] = decision.thrown
             kept[sp.id] = decision.kept
 
-            // Count votes (clubs = 2)
-            val voteWeight = decision.thrown.sumOf { card: SimCard ->
-                if (card.suit == Suit.CLUBS) 2.toInt() else 1.toInt()
-            }
+            // v6: every thrown card = 1 vote, no exceptions
+            val voteWeight = decision.thrown.size
             votes[targetId] = (votes[targetId] ?: 0) + voteWeight
         }
 
@@ -98,61 +93,29 @@ class SimVotingResolver {
             val cards = votingResult.thrown[sp.id] ?: continue
             val isWinner = sp.alignment == votingResult.winningTeam
             val targetId = votingResult.targets[sp.id] ?: continue
-            val targetPlayer = simPlayers.find { it.id == targetId } ?: continue
 
             if (isWinner) {
+                // v6: bank all thrown cards face-down to score pile
                 for (card in cards) {
                     sp.scorePile.add(card)
-                    events.add(ScoringEvent(sp.id, "${sp.name} banks ${card.display}", card.suit, true, card.value))
-
-                    when (card.suit) {
-                        Suit.DIAMONDS -> {
-                            sp.lockBestHandToScore()
-                            events.add(ScoringEvent(sp.id, "  Diamond locked best hand card into score pile"))
-                        }
-                        Suit.SPADES -> {
-                            if (targetPlayer.hand.isNotEmpty()) {
-                                val stolen = targetPlayer.hand.removeAt(random.nextInt(targetPlayer.hand.size))
-                                sp.hand.add(stolen)
-                                events.add(ScoringEvent(sp.id, "  Spade stole ${stolen.display} from ${targetPlayer.name}"))
-                            }
-                        }
-                        else -> {}
-                    }
                 }
+                events.add(ScoringEvent(sp.id, "${sp.name} banks ${cards.size} cards to score pile"))
             } else {
                 val targetAlignment = assignments.find { it.playerId == targetId }?.alignment
                 val targetedOpposite = sp.alignment != targetAlignment
                 val remaining = cards.toMutableList()
 
+                // v6: correct-target consolation returns best card to HAND
                 if (targetedOpposite && remaining.isNotEmpty()) {
                     remaining.sortByDescending { it.value }
-                    val banked = remaining.removeFirst()
-                    sp.scorePile.add(banked)
-                    events.add(ScoringEvent(sp.id, "${sp.name} targeted opposite team, banks ${banked.display}"))
+                    val bestCard = remaining.removeAt(0)
+                    sp.hand.add(bestCard)
+                    events.add(ScoringEvent(sp.id, "${sp.name} targeted opposite team, returns ${bestCard.display} to hand"))
                 }
 
-                for (card in remaining) {
-                    when (card.suit) {
-                        Suit.DIAMONDS -> {
-                            sp.moveBestScoreToHand()
-                            events.add(ScoringEvent(sp.id, "  Diamond lost ${card.display}, demoted score card", card.suit, false, card.value))
-                        }
-                        Suit.CLUBS -> {
-                            targetPlayer.scorePile.add(card)
-                            events.add(ScoringEvent(sp.id, "  Club lost ${card.display}, gifted to ${targetPlayer.name}", card.suit, false, card.value))
-                        }
-                        Suit.SPADES -> {
-                            if (sp.hand.isNotEmpty()) {
-                                val given = sp.hand.removeAt(random.nextInt(sp.hand.size))
-                                targetPlayer.hand.add(given)
-                                events.add(ScoringEvent(sp.id, "  Spade lost ${card.display}, gave ${given.display} to ${targetPlayer.name}", card.suit, false, card.value))
-                            }
-                        }
-                        else -> {
-                            events.add(ScoringEvent(sp.id, "  ${card.display} discarded (no penalty)", card.suit, false, card.value))
-                        }
-                    }
+                // All remaining cards → discard (no suit penalties)
+                if (remaining.isNotEmpty()) {
+                    events.add(ScoringEvent(sp.id, "${sp.name} discards ${remaining.size} cards"))
                 }
             }
         }

@@ -2,7 +2,6 @@ package com.meowfia.app.testing.analysis
 
 import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.testing.sim.SimGameResult
-import com.meowfia.app.testing.sim.Suit
 
 data class BatchStatistics(
     val nGames: Int,
@@ -29,17 +28,6 @@ data class BatchStatistics(
     // Strategy breakdown
     val strategyMeans: Map<String, Double>,
     val strategyStdDevs: Map<String, Double>,
-
-    // Suit economics
-    val suitThrows: Map<Suit, Int>,
-    val suitWins: Map<Suit, Int>,
-    val suitLosses: Map<Suit, Int>,
-    val clubGiftsTotal: Int,
-    val clubGiftsAvgValue: Double,
-    val spadeSteals: Int,
-    val spadeGives: Int,
-    val diamondLocks: Int,
-    val diamondDemotes: Int,
 
     // Night resolution
     val roleMetrics: Map<RoleId, RoleMetrics.RoleStats>,
