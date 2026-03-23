@@ -60,7 +60,7 @@ object BotClaimGenerator {
         val fakeTarget = others[random.nextInt(others.size)]
         val targetName = getTargetClaimText(claimedRole, fakeTarget.id, allPlayers)
 
-        val plausibleDelta = random.nextInt(-1, 3)
+        val plausibleDelta = estimatePlausibleDelta(claimedRole, pool, allPlayers.size, random)
 
         return BotDayClaim(
             playerId = bot.id,
@@ -70,6 +70,45 @@ object BotClaimGenerator {
             claimedEggDelta = plausibleDelta,
             isLying = true
         )
+    }
+
+    /**
+     * Estimates a plausible egg delta based on what the claimed role could produce
+     * plus what visitors from the pool might contribute.
+     */
+    private fun estimatePlausibleDelta(
+        claimedRole: RoleId,
+        pool: List<RoleId>,
+        playerCount: Int,
+        random: RandomProvider
+    ): Int {
+        // Eggs this role generates for ITSELF (not for targets)
+        val selfEggs = when (claimedRole) {
+            RoleId.HAWK -> if (random.nextFloat() < 0.4f) 1 else 0  // ~40% chance of finding Meowfia
+            RoleId.BLACK_SWAN -> 1  // Usually still Black Swan
+            RoleId.EAGLE -> random.nextInt(0, 3)  // Depends on visitor count
+            else -> 0  // Most roles lay eggs in OTHER nests, not their own
+        }
+
+        // Estimate eggs received from other roles visiting you.
+        // Each egg-laying role visits one player out of (playerCount - 1).
+        // Chance of being visited by any given layer = 1 / (playerCount - 1).
+        val targets = maxOf(1, playerCount - 1)
+        var expectedReceived = 0f
+        for (role in pool) {
+            val eggsPerVisit = when (role) {
+                RoleId.CHICKEN -> 2f
+                RoleId.PIGEON, RoleId.MOSQUITO, RoleId.TIT, RoleId.FALCON -> 1f
+                RoleId.OWL -> 0.5f  // Only lays egg if target has no other visitors
+                else -> 0f
+            }
+            expectedReceived += eggsPerVisit / targets
+        }
+
+        // Base estimate + random variation of ±1
+        val base = selfEggs + expectedReceived.toInt()
+        val variation = random.nextInt(-1, 2)  // -1, 0, or +1
+        return maxOf(0, base + variation)  // Egg deltas below 0 are rare, keep it non-negative
     }
 
     private fun getTargetClaimText(
