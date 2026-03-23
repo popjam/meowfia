@@ -27,9 +27,10 @@ class HouseCatHandler : RoleHandler {
         if (target == null) return
 
         // Intel only — no stealing in v6
+        val targetRole = context.getCurrentRole(target.id)
         val visitTarget = context.getVisitTargetOf(target.id)
         val visitInfo = if (visitTarget != null) "visited ${visitTarget.name}" else "visited nobody"
-        context.addInfo(actor.id, "${target.name} is a ${target.roleId.displayName} and $visitInfo.")
+        context.addInfo(actor.id, "${target.name} is a ${targetRole.displayName} and $visitInfo.")
         context.log("${actor.name} (House Cat) visits ${target.name} — learns role and visit target.")
     }
 

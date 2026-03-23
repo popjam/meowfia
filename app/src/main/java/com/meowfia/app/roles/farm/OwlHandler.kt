@@ -34,7 +34,7 @@ class OwlHandler : RoleHandler {
             context.addInfo(actor.id, "No animals visited ${target.name}. Egg laid in their nest.")
             context.log("${actor.name} (Owl) checks ${target.name} — no visitors. Egg laid.")
         } else {
-            val animalNames = visitors.map { it.roleId.displayName }
+            val animalNames = visitors.map { context.getCurrentRole(it.id).displayName }
             context.addInfo(actor.id, "Animals that visited ${target.name}: ${animalNames.joinToString(", ")}.")
             context.log("${actor.name} (Owl) checks ${target.name} — visitors: ${animalNames.joinToString(", ")}.")
         }
