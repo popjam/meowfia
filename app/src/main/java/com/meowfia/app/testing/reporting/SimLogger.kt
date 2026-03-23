@@ -5,6 +5,7 @@ import com.meowfia.app.data.model.GameState
 import com.meowfia.app.data.model.PlayerAssignment
 import com.meowfia.app.data.model.PoolCard
 import com.meowfia.app.data.model.RoleId
+import com.meowfia.app.testing.sim.RoundSolver
 import com.meowfia.app.testing.sim.SimPlayer
 import com.meowfia.app.testing.sim.SimVotingResolver
 import com.meowfia.app.testing.sim.Verbosity
@@ -97,6 +98,27 @@ class SimLogger(private val verbosity: Verbosity) {
         buffer.appendLine("  Scoring:")
         for (event in events) {
             buffer.appendLine("    ${event.description}")
+        }
+    }
+
+    fun solvability(result: RoundSolver.SolvabilityResult) {
+        if (verbosity.ordinal < Verbosity.SUMMARY.ordinal) return
+        val tag = when (result.solvability) {
+            RoundSolver.Solvability.SOLVED -> "SOLVED"
+            RoundSolver.Solvability.NARROWED -> "NARROWED"
+            RoundSolver.Solvability.COIN_FLIP -> "COIN FLIP"
+        }
+        buffer.appendLine("  Deducibility: $tag (${result.consistentWorlds}/${result.totalCandidates} consistent worlds)")
+        if (result.cleared.isNotEmpty()) {
+            buffer.appendLine("    Cleared: ${result.cleared.joinToString()}")
+        }
+        if (result.suspects.isNotEmpty() && result.solvability != RoundSolver.Solvability.COIN_FLIP) {
+            buffer.appendLine("    Suspects: ${result.suspects.joinToString()}")
+        }
+        if (verbosity.ordinal >= Verbosity.FULL.ordinal) {
+            for (reason in result.reasons) {
+                buffer.appendLine("    - $reason")
+            }
         }
     }
 

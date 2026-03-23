@@ -221,6 +221,7 @@ class SimEngine(private val config: SimConfig) {
             assignments = assignments,
             visitGraph = coordinator.state.visitGraph
         )
+        log.solvability?.let { logger.solvability(it) }
 
         // Voting (simulated)
         val votingResult = votingResolver.resolve(simPlayers, assignments, dawnReports, random)

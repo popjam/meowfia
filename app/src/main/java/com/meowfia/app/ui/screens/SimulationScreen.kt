@@ -556,6 +556,19 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
             }
         }
 
+        // Deducibility
+        item {
+            SummaryCard("Deducibility") {
+                HealthRow("Solved", "%.1f%%".format(stats.solvedRate * 100), stats.solvedRate < 0.5)
+                StatRow("Narrowed", "%.1f%%".format(stats.narrowedRate * 100))
+                StatRow("Coin Flip", "%.1f%%".format(stats.coinFlipRate * 100))
+                if (stats.avgSuspectsWhenNarrowed > 0) {
+                    StatRow("Avg Suspects (narrowed)", "%.1f".format(stats.avgSuspectsWhenNarrowed))
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         // Night Economy
         item {
             SummaryCard("Night Economy") {
@@ -757,11 +770,32 @@ private fun RoundDetailCard(
                 }
             }
 
-            Text(
-                "Meowfia: ${roundLog.meowfiaCount}",
-                color = MeowfiaColors.Meowfia,
-                fontSize = 12.sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "Meowfia: ${roundLog.meowfiaCount}",
+                    color = MeowfiaColors.Meowfia,
+                    fontSize = 12.sp
+                )
+                roundLog.solvability?.let { solve ->
+                    val (label, color) = when (solve.solvability) {
+                        com.meowfia.app.testing.sim.RoundSolver.Solvability.SOLVED ->
+                            "SOLVED" to MeowfiaColors.Farm
+                        com.meowfia.app.testing.sim.RoundSolver.Solvability.NARROWED ->
+                            "NARROWED" to MeowfiaColors.Primary
+                        com.meowfia.app.testing.sim.RoundSolver.Solvability.COIN_FLIP ->
+                            "COIN FLIP" to MeowfiaColors.TextSecondary
+                    }
+                    Text(
+                        text = label,
+                        color = color,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 

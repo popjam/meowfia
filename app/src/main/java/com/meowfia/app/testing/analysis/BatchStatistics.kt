@@ -62,6 +62,12 @@ data class BatchStatistics(
     // Comeback
     val comebackFrequency: Double,
 
+    // Deducibility
+    val solvedRate: Double,
+    val narrowedRate: Double,
+    val coinFlipRate: Double,
+    val avgSuspectsWhenNarrowed: Double,
+
     // Samples
     val sampleLogs: List<SimGameResult>
 )

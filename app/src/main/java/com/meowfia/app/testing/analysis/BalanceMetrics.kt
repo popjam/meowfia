@@ -2,6 +2,7 @@ package com.meowfia.app.testing.analysis
 
 import com.meowfia.app.data.model.Alignment
 import com.meowfia.app.data.model.RoleId
+import com.meowfia.app.testing.sim.RoundSolver
 import com.meowfia.app.testing.sim.SimConfig
 import com.meowfia.app.testing.sim.SimGameResult
 import kotlin.math.abs
@@ -173,6 +174,19 @@ object BalanceMetrics {
             comebackCount.toDouble() / eligibleGames
         } else 0.0
 
+        // Solvability
+        val allSolvability = results.flatMap { game ->
+            game.roundLogs.mapNotNull { it.solvability }
+        }
+        val solvabilityTotal = allSolvability.size.coerceAtLeast(1)
+        val solvedRate = allSolvability.count { it.solvability == RoundSolver.Solvability.SOLVED }.toDouble() / solvabilityTotal
+        val narrowedRate = allSolvability.count { it.solvability == RoundSolver.Solvability.NARROWED }.toDouble() / solvabilityTotal
+        val coinFlipRate = allSolvability.count { it.solvability == RoundSolver.Solvability.COIN_FLIP }.toDouble() / solvabilityTotal
+        val narrowedResults = allSolvability.filter { it.solvability == RoundSolver.Solvability.NARROWED }
+        val avgSuspectsWhenNarrowed = if (narrowedResults.isNotEmpty()) {
+            narrowedResults.map { it.suspects.size.toDouble() }.average()
+        } else 0.0
+
         return BatchStatistics(
             nGames = results.size,
             nPlayers = config.playerCount,
@@ -204,6 +218,10 @@ object BalanceMetrics {
             avgVotesPerElimination = avgVotesPerElimination,
             unanimousVoteRate = unanimousVoteRate,
             comebackFrequency = comebackFrequency,
+            solvedRate = solvedRate,
+            narrowedRate = narrowedRate,
+            coinFlipRate = coinFlipRate,
+            avgSuspectsWhenNarrowed = avgSuspectsWhenNarrowed,
             sampleLogs = sampleLogs
         )
     }
