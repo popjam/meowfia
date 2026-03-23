@@ -24,16 +24,23 @@ import java.util.concurrent.Executors
 /**
  * Compose wrapper around CameraX preview + ML Kit barcode scanner.
  * Scans QR codes continuously and reports recognized Meowfia role cards.
+ *
+ * @param useFrontCamera If true, uses the front-facing camera.
+ * @param allowDuplicates If true, the same QR code can be scanned multiple times
+ *   (with a cooldown to avoid rapid-fire duplicate reads of the same physical card).
  */
 @Composable
 fun QrScannerView(
     onCardScanned: (RoleId) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    useFrontCamera: Boolean = false,
+    allowDuplicates: Boolean = false
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scanner = remember { QrScanner() }
     val scannedCards = remember { mutableSetOf<RoleId>() }
+    val lastScanTime = remember { mutableMapOf<RoleId, Long>() }
     val executor = remember { Executors.newSingleThreadExecutor() }
 
     val previewView = remember { PreviewView(context) }
@@ -67,9 +74,19 @@ fun QrScannerView(
                                             if (barcode.format == Barcode.FORMAT_QR_CODE) {
                                                 barcode.rawValue?.let { raw ->
                                                     val roleId = scanner.parseQrContent(raw)
-                                                    if (roleId != null && roleId !in scannedCards) {
-                                                        scannedCards.add(roleId)
-                                                        onCardScanned(roleId)
+                                                    if (roleId != null) {
+                                                        if (allowDuplicates) {
+                                                            // Cooldown: don't re-scan same card within 2s
+                                                            val now = System.currentTimeMillis()
+                                                            val last = lastScanTime[roleId] ?: 0L
+                                                            if (now - last > 2000) {
+                                                                lastScanTime[roleId] = now
+                                                                onCardScanned(roleId)
+                                                            }
+                                                        } else if (roleId !in scannedCards) {
+                                                            scannedCards.add(roleId)
+                                                            onCardScanned(roleId)
+                                                        }
                                                     }
                                                 }
                                             }
@@ -84,10 +101,16 @@ fun QrScannerView(
                         }
                     }
 
+                val cameraSelector = if (useFrontCamera) {
+                    CameraSelector.DEFAULT_FRONT_CAMERA
+                } else {
+                    CameraSelector.DEFAULT_BACK_CAMERA
+                }
+
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
+                    cameraSelector,
                     preview,
                     analysis
                 )
