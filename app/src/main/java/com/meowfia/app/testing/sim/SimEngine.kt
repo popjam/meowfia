@@ -1,5 +1,6 @@
 package com.meowfia.app.testing.sim
 
+import com.meowfia.app.bot.BotBrain
 import com.meowfia.app.data.model.Alignment
 import com.meowfia.app.data.model.NightAction
 import com.meowfia.app.data.model.Player
@@ -8,7 +9,6 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.data.registry.RoleRegistry
 import com.meowfia.app.engine.GameCoordinator
 import com.meowfia.app.flowers.FlowerRegistry
-import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.testing.reporting.SimLogger
 import com.meowfia.app.util.RandomProvider
 
@@ -149,21 +149,18 @@ class SimEngine(private val config: SimConfig) {
             repeat(2) { if (deck.isNotEmpty()) sp.hand.add(deck.removeAt(0)) }
         }
 
-        // Night phase (real engine)
+        // Night phase (real engine + BotBrain targeting)
         val gameState = coordinator.state
         for (sp in simPlayers) {
-            val handler = RoleRegistry.get(sp.roleId)
-            val prompt = handler.getNightPrompt(sp.player, gameState.players)
-
-            val action: NightAction = when (prompt) {
-                is NightPrompt.PickPlayer -> {
-                    val targetId = config.forcedVisits?.get(sp.id)
-                        ?: sp.strategy.chooseNightTarget(sp, simPlayers, random)
-                        ?: random.nextInt(config.playerCount)
-                    NightAction.VisitPlayer(targetId)
-                }
-                is NightPrompt.Automatic -> NightAction.VisitRandom
-                is NightPrompt.SelfVisit -> NightAction.VisitSelf
+            val action = if (config.forcedVisits?.containsKey(sp.id) == true) {
+                NightAction.VisitPlayer(config.forcedVisits[sp.id]!!)
+            } else {
+                BotBrain.chooseNightAction(
+                    bot = sp.player,
+                    allPlayers = gameState.players,
+                    random = random,
+                    strategy = sp.strategy.toBotStrategy()
+                )
             }
             coordinator.submitNightAction(sp.id, action)
         }
