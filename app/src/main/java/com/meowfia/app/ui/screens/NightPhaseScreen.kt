@@ -24,6 +24,8 @@ import com.meowfia.app.data.model.Player
 import com.meowfia.app.data.registry.RoleRegistry
 import com.meowfia.app.engine.GameSession
 import com.meowfia.app.roles.NightPrompt
+import com.meowfia.app.bot.BotBrain
+import com.meowfia.app.ui.components.BotActionScreen
 import com.meowfia.app.ui.components.HandoffGate
 import com.meowfia.app.ui.components.MeowfiaPrimaryButton
 import com.meowfia.app.ui.components.PhaseHeader
@@ -59,6 +61,26 @@ fun NightPhaseScreen(
     }
 
     val player = players[currentPlayerIndex]
+
+    // Bot players: show intermediate screen, auto-submit action
+    if (player.isBot) {
+        BotActionScreen(
+            botName = player.name,
+            phaseName = "Night Phase",
+            actionText = "is performing their night action",
+            delayMs = 1500L,
+            onComplete = {
+                val action = BotBrain.chooseNightAction(
+                    bot = player,
+                    allPlayers = players,
+                    random = GameSession.coordinator.randomProvider
+                )
+                onActionSubmitted(player.id, action)
+            }
+        )
+        return
+    }
+
     val handler = RoleRegistry.get(player.roleId)
     val prompt = handler.getNightPrompt(player, players)
 

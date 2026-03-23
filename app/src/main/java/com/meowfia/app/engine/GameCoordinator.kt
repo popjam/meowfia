@@ -244,4 +244,12 @@ class GameCoordinator(
 
     fun getPlayerCount(): Int = state.players.size
     fun getCurrentPhase(): GamePhase = state.phase
+
+    /** Expose the random provider for bot decisions. */
+    val randomProvider: RandomProvider get() = random
+
+    /** Update the player list (e.g. to flag bots after role assignment). */
+    fun updatePlayers(players: List<Player>) {
+        _state = state.copy(players = players)
+    }
 }

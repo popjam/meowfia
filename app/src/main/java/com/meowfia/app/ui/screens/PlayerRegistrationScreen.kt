@@ -42,7 +42,7 @@ import com.meowfia.app.ui.theme.MeowfiaColors
  */
 @Composable
 fun PlayerRegistrationScreen(
-    playerCount: Int,
+    humanCount: Int,
     assignments: List<PlayerAssignment>,
     onAllRegistered: (names: List<String>, profiles: Map<Int, Bitmap>) -> Unit
 ) {
@@ -50,7 +50,7 @@ fun PlayerRegistrationScreen(
     val profiles = remember { mutableStateMapOf<Int, Bitmap>() }
     var currentIndex by remember { mutableIntStateOf(0) }
 
-    if (currentIndex >= playerCount) {
+    if (currentIndex >= humanCount) {
         onAllRegistered(names.toList(), profiles.toMap())
         return
     }
@@ -82,7 +82,7 @@ fun PlayerRegistrationScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "Player ${currentIndex + 1} of $playerCount",
+                            text = "Player ${currentIndex + 1} of $humanCount",
                             color = MeowfiaColors.TextSecondary,
                             fontSize = 14.sp
                         )

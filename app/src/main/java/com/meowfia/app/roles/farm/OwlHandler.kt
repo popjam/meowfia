@@ -12,7 +12,7 @@ class OwlHandler : RoleHandler {
     override val roleId = RoleId.OWL
 
     override fun getNightPrompt(player: Player, allPlayers: List<Player>) =
-        NightPrompt.PickPlayer("Choose a player. You'll learn which animals visited them.")
+        NightPrompt.PickPlayer("Choose a player. You'll learn the animals (not players) that visited them.")
 
     override fun resolve(
         actor: Player,

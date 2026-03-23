@@ -38,9 +38,10 @@ class RoleIdTest {
 
     @Test
     fun future_roles_not_implemented() {
-        assertThat(RoleId.PERSIAN.implemented).isFalse()
         assertThat(RoleId.MOUSER.implemented).isFalse()
         assertThat(RoleId.FLOOFER.implemented).isFalse()
+        assertThat(RoleId.CAT_BURGLER.implemented).isFalse()
+        assertThat(RoleId.UGLY_DUCKLING.implemented).isFalse()
     }
 
     @Test

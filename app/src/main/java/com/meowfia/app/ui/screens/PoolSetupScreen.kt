@@ -35,10 +35,11 @@ import com.meowfia.app.ui.theme.MeowfiaColors
 
 @Composable
 fun PoolSetupScreen(
-    onStartGame: (selectedRoles: List<RoleId>, playerCount: Int) -> Unit
+    onStartGame: (selectedRoles: List<RoleId>, playerCount: Int, botCount: Int) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(1) } // 0 = QR, 1 = Manual
     var playerCount by remember { mutableIntStateOf(6) }
+    var botCount by remember { mutableIntStateOf(0) }
     val selectedRoles = remember {
         mutableStateListOf(RoleId.PIGEON, RoleId.HOUSE_CAT)
     }
@@ -66,7 +67,12 @@ fun PoolSetupScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 MeowfiaSecondaryButton(
                     text = "-",
-                    onClick = { if (playerCount > 3) playerCount-- },
+                    onClick = {
+                        if (playerCount > 3) {
+                            playerCount--
+                            if (botCount > playerCount) botCount = playerCount
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                     enabled = playerCount > 3
                 )
@@ -84,6 +90,46 @@ fun PoolSetupScreen(
                     enabled = playerCount < 8
                 )
             }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Bot count selector
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Bots:", color = MeowfiaColors.TextPrimary, fontSize = 18.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                MeowfiaSecondaryButton(
+                    text = "-",
+                    onClick = { if (botCount > 0) botCount-- },
+                    modifier = Modifier.weight(1f),
+                    enabled = botCount > 0
+                )
+                Text(
+                    text = "$botCount",
+                    color = MeowfiaColors.Primary,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                MeowfiaSecondaryButton(
+                    text = "+",
+                    onClick = { if (botCount < playerCount) botCount++ },
+                    modifier = Modifier.weight(1f),
+                    enabled = botCount < playerCount
+                )
+            }
+        }
+
+        if (botCount == playerCount) {
+            Text(
+                text = "Spectator mode — all players are bots",
+                color = MeowfiaColors.TextSecondary,
+                fontSize = 13.sp
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -180,7 +226,7 @@ fun PoolSetupScreen(
         Spacer(modifier = Modifier.height(12.dp))
         MeowfiaPrimaryButton(
             text = "Start Game",
-            onClick = { onStartGame(selectedRoles.toList(), playerCount) },
+            onClick = { onStartGame(selectedRoles.toList(), playerCount, botCount) },
             enabled = selectedRoles.size > 2
         )
         Spacer(modifier = Modifier.height(8.dp))
@@ -191,7 +237,7 @@ fun PoolSetupScreen(
                     RoleId.PIGEON, RoleId.HOUSE_CAT,
                     RoleId.HAWK, RoleId.OWL, RoleId.EAGLE
                 )
-                onStartGame(defaults, playerCount)
+                onStartGame(defaults, playerCount, botCount)
             }
         )
     }

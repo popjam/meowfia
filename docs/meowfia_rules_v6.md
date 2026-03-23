@@ -22,7 +22,7 @@ Meowfia is a social deduction game for 4–8 players. Each round, players are se
 
 The Meowfia deck contains **64 cards**. Each card has two identities:
 
-1. **The egg** — a value (1–13) in the corner, or a **Wild** (value 0). This is what matters when the card is in your hand — higher values are worth more when banked.
+1. **The egg** — a value (1–13) in the corner, or a **Wild** (value 0). This is what matters when the card is in your nest — higher values are worth more when banked.
 2. **The animal or flower** — printed in the centre with its name, description, and QR code. This is what matters when the card is in the pool.
 
 The deck is composed of:
@@ -39,7 +39,7 @@ Each card also has one of three animal types printed on it:
 - **Meowfia animals** (cats) — these become Meowfia roles when placed in the pool
 - **Flowers** — these trigger a special event for the round when revealed into the pool
 
-When a card is in the pool, its animal or flower description matters. When a card is in your hand, only the **value** matters for scoring.
+When a card is in the pool, its animal or flower description matters. When a card is in your nest, only the **value** matters for scoring.
 
 ### Card Values
 
@@ -51,9 +51,9 @@ When you throw or bank a card, only its **value** matters. Higher-value cards ar
 
 Your **score pile** is a personal face-down pile of cards you've banked from winning throws across the game. Your score at the end of the game is:
 
-**Final Score = total value of cards in your score pile + 1 point per card remaining in your hand**
+**Final Score = total value of cards in your score pile + 1 point per card remaining in your nest**
 
-Cards in your score pile are worth their printed value (1–13). Cards in your hand are each worth 1 point regardless of value.
+Cards in your score pile are worth their printed value (1–13). Cards in your nest are each worth 1 point regardless of value.
 
 ---
 
@@ -61,11 +61,13 @@ Cards in your score pile are worth their printed value (1–13). Cards in your h
 
 Several roles and effects reference the following terms. Learn these before playing.
 
+**Nest:** Your nest is the cards you hold in your hand. When a role "lays an egg in your nest," you draw a card from the deck. When you "lose an egg from your nest," you discard a card. Your nest is hidden from other players.
+
 **Wink:** Some roles grant a player a Wink. During the day phase, a player holding a Wink may secretly wink at another player. That player must cease talking and **die** 5–10 seconds later. A Wink is a one-use ability — once used, it is spent. The wink must be subtle; if others notice, that's part of the game.
 
 **Hug (Roleblock):** When a role says it "hugs" a player, that player is **roleblocked**. Their visit still goes through (they still visit their chosen target), but all of their role's passive and active effects are cancelled. For example, a hugged Pigeon will visit their target but will not lay an egg; a hugged Owl will visit but will not learn any animals.
 
-**Confusion:** A confused player receives **incorrect information** in their dawn report. This can include a wrong egg count or other misleading details. A confused player must still act on the information they are given — for example, drawing or discarding eggs based on their (incorrect) reported count.
+**Confusion:** A confused player receives **incorrect information** in their dawn report. This can include a wrong egg count or other misleading details. A confused player must still act on the information they are given — for example, drawing or discarding cards based on their (incorrect) reported nest count.
 
 **Death:** When a player dies (from a Wink, Stinging Bush, Tickler, Tigerlily, or any other effect), they must immediately **collapse and act out a dramatic death**. Dead players cannot talk for the remainder of the day phase. Dead players **can still throw eggs** during eggsecution, but their thrown cards **do not count as votes**. Dead players' thrown cards are still resolved normally for scoring — they bank cards on a win, and receive the correct-target consolation like anyone else. Death during the day does not remove a player from consideration for eggsecution — eggs already thrown at a dead player still count.
 
@@ -76,7 +78,7 @@ Several roles and effects reference the following terms. Learn these before play
 1. Players sit in a circle. The person who most recently touched a cat is the first dealer.
 2. The dealer finds the "Pigeon" and "House Cat" cards from the deck and places them face-up in the centre to form the **pool**. Players can read each card's animal description to learn what that role does.
 3. The dealer shuffles the remaining deck.
-4. Each player is dealt **3 cards** from the deck to form their starting hand. Keep your hand hidden from other players.
+4. Each player is dealt **3 cards** from the deck to form their starting nest. Keep your nest hidden from other players.
 
 ---
 
@@ -93,13 +95,13 @@ The dealer reveals the top 3 cards from the deck and adds them face-up to the po
 
 It's possible to reveal any mix — three animals, two animals and a flower, one animal and two flowers, or even three flowers. Whatever comes off the top of the deck is what you get.
 
-These cards are removed from the deck and will not appear in anyone's hand.
+These cards are removed from the deck and will not appear in anyone's nest.
 
 The dealer opens the Meowfia app, presses "Start Game," and scans the QR codes on all cards currently in the pool.
 
 ### 2. Setup Phase
 
-Each player **draws 2 cards** from the deck and adds them to their hand.
+Each player **draws 2 cards** from the deck and adds them to their nest.
 
 Players pass the phone clockwise. Each player enters their name and is **secretly** assigned their role by the app. Each player has an independent **1 in 3 chance** of being Meowfia. This means:
 
@@ -122,13 +124,13 @@ This phase should take about 1 minute.
 
 **Players keep their eyes closed.** Players pass the phone one more time. When the phone reaches you, open your eyes to read your dawn report, then close them again before passing it on. Each player is told:
 
-- How many eggs they gained or lost
+- How many eggs were laid in or taken from your nest
 - Any other important information (e.g. if their role changed, if they were confused)
 
 While still hidden from other players, each player immediately acts on their dawn report:
 
-- **If you gained eggs:** draw that many cards from the deck and add them to your hand.
-- **If you lost eggs:** choose that many cards from your hand and discard them face-down to the discard pile.
+- **If you gained eggs:** draw that many cards from the deck into your nest.
+- **If you lost eggs:** choose that many cards from your nest and discard them face-down to the discard pile.
 
 After everyone has seen their dawn report and drawn or discarded accordingly, all players open their eyes.
 
@@ -148,16 +150,16 @@ Players now have **5 minutes** to discuss:
 
 ### 6. Voting Phase (Eggsecution)
 
-**No talking during voting.** Any player who speaks loses one card from their hand (discard it).
+**No talking during voting.** Any player who speaks loses one card from their nest (discard it).
 
 **Dead players** may still throw eggs, but their thrown cards **do not count as votes**. Their cards are still resolved normally for scoring — dead players can still win points.
 
 Each player (living or dead) now secretly chooses:
 
 1. **A target** — place a player colour token in your closed fist, choosing any other player to throw your eggs at
-2. **Cards to throw** — select any number of cards from your hand (minimum 1) and hold them with the token.
+2. **Cards to throw** — select any number of cards from your nest (minimum 1) and hold them with the token.
 
-Players **keep** any cards they chose not to throw. These stay in hand and are worth **1 point each** at the end of the game.
+Players **keep** any cards they chose not to throw. These stay in your nest and are worth **1 point each** at the end of the game.
 
 Once everyone is ready, all players **reveal simultaneously** — showing their target token and their thrown cards **face-down**. Nobody sees the suit or value of thrown cards.
 
@@ -182,7 +184,7 @@ Each card you threw goes **face-down** into your **score pile** (personal pile �
 
 **If your team LOST this round:**
 
-First, check: **did you target a player on the opposite team?** If yes, you get a consolation — privately look through your thrown cards, pick the single highest-value card, and return it to your hand. Do not reveal it. (For example, if you're Farm, you lost, but you threw at a Meowfia player — you were right about *them* even though your team lost. You get to keep your best thrown card.)
+First, check: **did you target a player on the opposite team?** If yes, you get a consolation — privately look through your thrown cards, pick the single highest-value card, and return it to your nest. Do not reveal it. (For example, if you're Farm, you lost, but you threw at a Meowfia player — you were right about *them* even though your team lost. You get to keep your best thrown card.)
 
 All remaining thrown cards (or all thrown cards, if you targeted your own team) go into the **shared discard pile** face-down.
 
@@ -201,7 +203,7 @@ All remaining thrown cards (or all thrown cards, if you targeted your own team) 
 | Threw any card, team **lost** | Card → discard pile |
 | Threw Wild, team **won** | Card → score pile (worth 0) |
 | Kept any card | Worth 1 point at end of game |
-| Lost, but targeted opposite team | Return your best thrown card to your hand |
+| Lost, but targeted opposite team | Return your best thrown card to your nest |
 | Dead player throws | Resolved normally for scoring, but cards don't count as votes |
 
 ---
@@ -217,7 +219,7 @@ If the draw pile runs out, shuffle the discard pile to form a new draw pile. If 
 
 After **3 rounds** (or however many were agreed upon), the game ends. Each player calculates their final score:
 
-**Final Score = total value of all cards in your score pile + 1 point per card remaining in your hand**
+**Final Score = total value of all cards in your score pile + 1 point per card remaining in your nest**
 
 The player with the **highest score** wins the game.
 
@@ -225,13 +227,13 @@ The player with the **highest score** wins the game.
 
 ## STRATEGY
 
-**Throw high cards when confident.** A King in your hand is worth only 1 point. Banked through a winning throw, it's worth 13. The gap between keeping (1 point) and correctly throwing (card value) is what makes the gambling meaningful. Throw high cards when you're confident. Throw low cards more freely.
+**Throw high cards when confident.** A King in your nest is worth only 1 point. Banked through a winning throw, it's worth 13. The gap between keeping (1 point) and correctly throwing (card value) is what makes the gambling meaningful. Throw high cards when you're confident. Throw low cards more freely.
 
 **Throw count is public, card value is not.** Everyone can see how many cards you threw, but not what they were. A player who throws 4 cards is making a bold statement of confidence — or bluffing. A player who throws 1 card is hedging. Read the throw counts to gauge how confident other players are.
 
 **Your score is secret.** Score piles are face-down and never revealed until the final count. Nobody knows who's winning. This means you can't just pile on the leader — you have to track who's been on winning teams, who's been throwing aggressively, and who's been keeping cards.
 
-**Keep cards when unsure.** Every card in your hand at the end of the game is worth 1 point. Don't throw everything unless you're sure. A player who keeps 5 cards has a guaranteed floor of 5 points — a player who throws everything and loses banks nothing.
+**Keep cards when unsure.** Every card in your nest at the end of the game is worth 1 point. Don't throw everything unless you're sure. A player who keeps 5 cards has a guaranteed floor of 5 points — a player who throws everything and loses banks nothing.
 
 **Cross-reference the eggs.** During the day, share what role you were, who you visited, and how many eggs you gained or lost. Other players can check whether the egg counts add up. If two Pigeons claim to have visited Alice but Alice only gained 1 egg, one of those Pigeons is lying.
 
@@ -239,7 +241,7 @@ The player with the **highest score** wins the game.
 
 **Zero-Meowfia rounds can happen.** If night phase information seems unusually quiet, consider that there might be no cats at all. Every egg you throw is a loss in that scenario.
 
-**Target the right team even if you lose.** The correct-target consolation returns your best thrown card to your hand even when your team loses — as long as you threw at an enemy. Being right about *who* always has value — even when the vote doesn't go your way.
+**Target the right team even if you lose.** The correct-target consolation returns your best thrown card to your nest even when your team loses — as long as you threw at an enemy. Being right about *who* always has value — even when the vote doesn't go your way.
 
 ---
 

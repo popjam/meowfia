@@ -6,5 +6,6 @@ data class Player(
     val alignment: Alignment = Alignment.FARM,
     val roleId: RoleId = RoleId.PIGEON,
     val originalRoleId: RoleId = roleId,
-    val statusEffects: Set<StatusEffect> = emptySet()
+    val statusEffects: Set<StatusEffect> = emptySet(),
+    val isBot: Boolean = false
 )

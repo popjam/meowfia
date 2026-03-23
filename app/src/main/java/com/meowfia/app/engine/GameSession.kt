@@ -16,16 +16,19 @@ object GameSession {
     var isInitialized = false
         private set
 
+    var botCount: Int = 0
+
     /** Player profile drawings, keyed by player ID. Cosmetic — not part of engine state. */
     val profileImages = mutableMapOf<Int, Bitmap>()
 
-    fun startNewGame(seed: Long? = null) {
+    fun startNewGame(seed: Long? = null, botCount: Int = 0) {
         RoleRegistry.initialize()
         FlowerRegistry.initialize()
         coordinator = GameCoordinator(
             random = RandomProvider(seed ?: System.currentTimeMillis())
         )
         profileImages.clear()
+        this.botCount = botCount
         isInitialized = true
     }
 }

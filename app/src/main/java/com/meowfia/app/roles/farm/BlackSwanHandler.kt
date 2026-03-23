@@ -25,11 +25,18 @@ class BlackSwanHandler : RoleHandler {
             return
         }
 
+        // Report current role to the player
+        context.addInfo(actor.id, "You are the ${actor.roleId.displayName}.")
+
         if (actor.roleId == RoleId.BLACK_SWAN) {
             context.addEggs(actor.id, 1)
             context.log("${actor.name} (Black Swan) visits self — still a Black Swan. Egg gained.")
         } else {
-            context.log("${actor.name} (Black Swan) visits self — role has been swapped. No egg.")
+            context.log("${actor.name} (Black Swan) visits self — role has been swapped to ${actor.roleId.displayName}. No egg.")
         }
+    }
+
+    override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
+        return context.getInfoFor(player.id)
     }
 }

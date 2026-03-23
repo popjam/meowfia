@@ -12,7 +12,7 @@ class TurkeyHandler : RoleHandler {
     override val roleId = RoleId.TURKEY
 
     override fun getNightPrompt(player: Player, allPlayers: List<Player>) =
-        NightPrompt.Automatic("You stay home. You'll lay an egg for each player who visits you.")
+        NightPrompt.Automatic("You stay home. You'll lay an egg in the nest of each player who visits you.")
 
     override fun resolve(
         actor: Player,

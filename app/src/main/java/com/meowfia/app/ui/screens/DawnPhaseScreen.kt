@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.meowfia.app.data.model.DawnReport
 import com.meowfia.app.data.model.Player
+import com.meowfia.app.ui.components.BotActionScreen
 import com.meowfia.app.ui.components.HandoffGate
 import com.meowfia.app.ui.components.MeowfiaPrimaryButton
 import com.meowfia.app.ui.components.PhaseHeader
@@ -52,6 +53,20 @@ fun DawnPhaseScreen(
     }
 
     val player = players[currentPlayerIndex]
+
+    // Bot players: generate dawn report (side effect) but show intermediate screen
+    if (player.isBot) {
+        getDawnReport(player.id) // populate engine state
+        BotActionScreen(
+            botName = player.name,
+            phaseName = "Dawn Phase",
+            actionText = "is reading their dawn report",
+            delayMs = 1000L,
+            onComplete = onPlayerDone
+        )
+        return
+    }
+
     val report = getDawnReport(player.id)
 
     HandoffGate(
@@ -94,13 +109,13 @@ fun DawnPhaseScreen(
             )
             if (delta >= 0) {
                 Text(
-                    text = "Draw $delta cards from the deck",
+                    text = "Draw $delta cards into your nest",
                     color = MeowfiaColors.TextSecondary,
                     fontSize = 15.sp
                 )
             } else {
                 Text(
-                    text = "Discard ${kotlin.math.abs(delta)} cards from your hand",
+                    text = "Discard ${kotlin.math.abs(delta)} cards from your nest",
                     color = MeowfiaColors.TextSecondary,
                     fontSize = 15.sp
                 )
