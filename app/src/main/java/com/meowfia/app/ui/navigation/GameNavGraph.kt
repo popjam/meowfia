@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import com.meowfia.app.bot.BotClaimGenerator
 import com.meowfia.app.bot.BotDayClaim
 import com.meowfia.app.bot.BotNames
+import com.meowfia.app.ui.components.generateColorProfile
 import com.meowfia.app.data.model.PlayerAssignment
 import com.meowfia.app.data.model.PoolCard
 import com.meowfia.app.data.model.RoleId
@@ -88,8 +89,11 @@ fun GameNavGraph(navController: NavHostController) {
                     )
                     assignments = GameSession.coordinator.assignRoles()
 
-                    // Flag bot players
+                    // Flag bot players and assign color profiles for bots
                     flagBotPlayers(humanCount)
+                    for (i in humanCount until count) {
+                        GameSession.profileImages[i] = generateColorProfile(i)
+                    }
 
                     currentPlayerIndex = 0
 
@@ -225,7 +229,8 @@ fun GameNavGraph(navController: NavHostController) {
                 winningTeam = winningTeam,
                 onViewSummary = {
                     navController.navigate(MeowfiaRoute.RoundSummary.route)
-                }
+                },
+                profileImages = GameSession.profileImages
             )
         }
 

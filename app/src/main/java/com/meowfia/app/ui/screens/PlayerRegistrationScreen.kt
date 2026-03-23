@@ -1,6 +1,8 @@
 package com.meowfia.app.ui.screens
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -29,8 +32,9 @@ import androidx.compose.ui.unit.sp
 import com.meowfia.app.data.model.Alignment as GameAlignment
 import com.meowfia.app.data.model.PlayerAssignment
 import com.meowfia.app.ui.components.HandoffGate
-import com.meowfia.app.ui.components.ProfileCanvas
+import com.meowfia.app.ui.components.ProfilePicturePicker
 import com.meowfia.app.ui.components.RevealCard
+import com.meowfia.app.ui.components.RoleIcon
 import com.meowfia.app.ui.theme.MeowfiaColors
 
 /**
@@ -58,15 +62,18 @@ fun PlayerRegistrationScreen(
     val assignment = assignments.getOrNull(currentIndex)
 
     key(currentIndex) {
-        var currentName by remember { mutableStateOf("") }
+        val defaultName = "Player ${currentIndex + 1}"
+        var currentName by remember { mutableStateOf(defaultName) }
+        var hasEdited by remember { mutableStateOf(false) }
         var currentProfile by remember { mutableStateOf<Bitmap?>(null) }
+        val focusManager = LocalFocusManager.current
 
         HandoffGate(
             playerName = "Player ${currentIndex + 1}",
             waitingMessage = "Pass the phone to the next player",
             showProfile = false,
             onComplete = {
-                val name = currentName.trim().ifEmpty { "Player ${currentIndex + 1}" }
+                val name = currentName.trim().ifEmpty { defaultName }
                 names.add(name)
                 currentProfile?.let { profiles[currentIndex] = it }
                 currentIndex++
@@ -78,7 +85,11 @@ fun PlayerRegistrationScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(20.dp),
+                            .padding(20.dp)
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { focusManager.clearFocus() },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
@@ -98,9 +109,15 @@ fun PlayerRegistrationScreen(
 
                         OutlinedTextField(
                             value = currentName,
-                            onValueChange = { currentName = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Name", color = MeowfiaColors.TextSecondary) },
+                            onValueChange = { currentName = it; hasEdited = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) {
+                                    if (!hasEdited) { currentName = ""; hasEdited = true }
+                                },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -112,18 +129,19 @@ fun PlayerRegistrationScreen(
                             )
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = "Draw your profile",
+                            text = "Profile picture",
                             color = MeowfiaColors.TextSecondary,
                             fontSize = 14.sp
                         )
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        ProfileCanvas(
-                            onDrawingChanged = { bitmap -> currentProfile = bitmap },
-                            modifier = Modifier.fillMaxWidth(0.6f)
+                        ProfilePicturePicker(
+                            playerIndex = currentIndex,
+                            onProfileChanged = { bitmap -> currentProfile = bitmap },
+                            modifier = Modifier.fillMaxWidth()
                         )
 
                         Spacer(modifier = Modifier.weight(1f))
@@ -146,31 +164,29 @@ fun PlayerRegistrationScreen(
                                 .fillMaxWidth()
                                 .padding(24.dp)
                         ) {
-                            Text(
-                                text = "Your role:",
-                                color = MeowfiaColors.TextSecondary,
-                                fontSize = 16.sp
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = assignment.alignment.displayName,
-                                color = if (assignment.alignment == GameAlignment.FARM)
-                                    MeowfiaColors.Farm else MeowfiaColors.Meowfia,
-                                fontSize = 36.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            RoleIcon(roleId = assignment.roleId, size = 80)
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = assignment.roleId.displayName,
                                 color = MeowfiaColors.Primary,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "You are on the ${assignment.alignment.displayName} team",
+                                color = if (assignment.alignment == GameAlignment.FARM)
+                                    MeowfiaColors.Farm else MeowfiaColors.Meowfia,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
                             Text(
                                 text = assignment.roleId.description,
                                 color = MeowfiaColors.TextSecondary,
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 textAlign = TextAlign.Center
                             )
                         }

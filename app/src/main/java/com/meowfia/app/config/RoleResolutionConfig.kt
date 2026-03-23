@@ -11,12 +11,13 @@ import com.meowfia.app.data.model.RoleId
  * Tier 3 (30): Egg laying — Pigeon, Chicken, Mosquito, Tit
  * Tier 4 (40): Steals — House Cat
  * Tier 5 (50): Investigation — Hawk, Owl
+ * Tier 5.5 (55): Swaps — Frog, Switcheroo, Sheep
  * Tier 6 (60): Tracking / graph-dependent — Eagle, Falcon
  * Tier 7 (70): Passive / reactive — Turkey
  * Tier 8 (80): Self-visit — Black Swan
  */
 object RoleResolutionConfig {
-    const val VERSION = "1.1.0"
+    const val VERSION = "1.2.0"
 
     private val defaultPriorities: Map<RoleId, Int> = mapOf(
         RoleId.PIGEON to 30,
@@ -26,6 +27,9 @@ object RoleResolutionConfig {
         RoleId.HOUSE_CAT to 40,
         RoleId.HAWK to 50,
         RoleId.OWL to 50,
+        RoleId.FROG to 55,
+        RoleId.SWITCHEROO to 55,
+        RoleId.SHEEP to 55,
         RoleId.EAGLE to 60,
         RoleId.FALCON to 60,
         RoleId.TURKEY to 70,

@@ -173,7 +173,7 @@ fun ProfileCanvas(
 fun ProfileThumbnail(
     bitmap: Bitmap?,
     modifier: Modifier = Modifier,
-    size: Int = 40
+    size: Int = 64
 ) {
     if (bitmap != null) {
         Image(

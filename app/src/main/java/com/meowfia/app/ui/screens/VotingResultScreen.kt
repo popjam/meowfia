@@ -1,6 +1,6 @@
 package com.meowfia.app.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
+import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment as ComposeAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -22,6 +23,7 @@ import com.meowfia.app.data.model.Alignment
 import com.meowfia.app.data.model.Player
 import com.meowfia.app.ui.components.MeowfiaPrimaryButton
 import com.meowfia.app.ui.components.PlayerPicker
+import com.meowfia.app.ui.components.RoleIcon
 import com.meowfia.app.ui.theme.MeowfiaColors
 
 @Composable
@@ -30,7 +32,8 @@ fun VotingResultScreen(
     onEggsecuted: (eliminatedPlayerId: Int) -> Unit,
     eliminatedPlayer: Player?,
     winningTeam: Alignment?,
-    onViewSummary: () -> Unit
+    onViewSummary: () -> Unit,
+    profileImages: Map<Int, Bitmap> = emptyMap()
 ) {
     var selectedPlayerId by remember { mutableStateOf<Int?>(null) }
 
@@ -55,7 +58,7 @@ fun VotingResultScreen(
                 selectedPlayerId = selectedPlayerId,
                 onPlayerSelected = { selectedPlayerId = it },
                 modifier = Modifier.weight(1f),
-                profileImages = com.meowfia.app.engine.GameSession.profileImages
+                profileImages = profileImages
             )
 
             MeowfiaPrimaryButton(
@@ -67,32 +70,23 @@ fun VotingResultScreen(
             // Step 2: Reveal
             Spacer(modifier = Modifier.weight(1f))
 
+            // Role icon for eliminated player
+            RoleIcon(roleId = eliminatedPlayer.roleId, size = 120)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
-                text = eliminatedPlayer.name,
+                text = "${eliminatedPlayer.name} was eggsecuted!",
                 color = MeowfiaColors.TextPrimary,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = eliminatedPlayer.alignment.displayName,
-                color = if (eliminatedPlayer.alignment == Alignment.FARM) MeowfiaColors.Farm
-                else MeowfiaColors.Meowfia,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = eliminatedPlayer.roleId.displayName,
-                color = MeowfiaColors.Primary,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = eliminatedPlayer.roleId.description,
+                text = "They were a ${eliminatedPlayer.roleId.displayName}\non the ${eliminatedPlayer.alignment.displayName} team.",
                 color = MeowfiaColors.TextSecondary,
-                fontSize = 16.sp,
+                fontSize = 18.sp,
                 textAlign = TextAlign.Center
             )
 
@@ -103,8 +97,9 @@ fun VotingResultScreen(
                     text = "${winningTeam.displayName.uppercase()} WINS!",
                     color = if (winningTeam == Alignment.FARM) MeowfiaColors.Farm
                     else MeowfiaColors.Meowfia,
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 42.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
                 )
             }
 

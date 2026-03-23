@@ -1,9 +1,11 @@
 package com.meowfia.app.engine
 
+import com.meowfia.app.data.model.Alignment
 import com.meowfia.app.data.model.DawnReport
 import com.meowfia.app.data.model.NightResult
 import com.meowfia.app.data.model.Player
 import com.meowfia.app.data.model.PoolCard
+import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.data.model.StatusEffect
 import com.meowfia.app.util.RandomProvider
 
@@ -25,6 +27,8 @@ class ResolutionContext(
     private val info = mutableMapOf<Int, MutableList<String>>()
     private val effects = mutableMapOf<Int, MutableSet<StatusEffect>>()
     private val narrativeLog = mutableListOf<String>()
+    private val roleSwaps = mutableMapOf<Int, RoleId>()
+    private val alignmentSwaps = mutableMapOf<Int, Alignment>()
 
     // --- Write operations (called by role handlers) ---
 
@@ -46,6 +50,14 @@ class ResolutionContext(
 
     fun log(message: String) {
         narrativeLog.add(message)
+    }
+
+    fun swapRoles(playerId: Int, newRoleId: RoleId) {
+        roleSwaps[playerId] = newRoleId
+    }
+
+    fun swapAlignment(playerId: Int, newAlignment: Alignment) {
+        alignmentSwaps[playerId] = newAlignment
     }
 
     // --- Read operations (called by role handlers and engine) ---
@@ -85,6 +97,10 @@ class ResolutionContext(
     }
 
     fun getNarrativeLog(): List<String> = narrativeLog.toList()
+
+    fun getRoleSwaps(): Map<Int, RoleId> = roleSwaps.toMap()
+
+    fun getAlignmentSwaps(): Map<Int, Alignment> = alignmentSwaps.toMap()
 
     // --- Build final results ---
 

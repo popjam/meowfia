@@ -6,10 +6,13 @@ import com.meowfia.app.roles.farm.BlackSwanHandler
 import com.meowfia.app.roles.farm.ChickenHandler
 import com.meowfia.app.roles.farm.EagleHandler
 import com.meowfia.app.roles.farm.FalconHandler
+import com.meowfia.app.roles.farm.FrogHandler
 import com.meowfia.app.roles.farm.HawkHandler
 import com.meowfia.app.roles.farm.MosquitoHandler
 import com.meowfia.app.roles.farm.OwlHandler
 import com.meowfia.app.roles.farm.PigeonHandler
+import com.meowfia.app.roles.farm.SheepHandler
+import com.meowfia.app.roles.farm.SwitcherooHandler
 import com.meowfia.app.roles.farm.TitHandler
 import com.meowfia.app.roles.farm.TurkeyHandler
 import com.meowfia.app.roles.meowfia.HouseCatHandler
@@ -42,5 +45,8 @@ object RoleRegistry {
         register(ChickenHandler())
         register(TitHandler())
         register(BlackSwanHandler())
+        register(FrogHandler())
+        register(SheepHandler())
+        register(SwitcherooHandler())
     }
 }

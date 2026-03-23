@@ -12,7 +12,7 @@ class RoleIdTest {
         val implementedAnimals = RoleId.entries.filter {
             it.implemented && (it.isFarmAnimal || it.isMeowfiaAnimal)
         }
-        assertThat(implementedAnimals).hasSize(11)
+        assertThat(implementedAnimals).hasSize(14) // 11 original + Frog, Sheep, Switcheroo
     }
 
     @Test

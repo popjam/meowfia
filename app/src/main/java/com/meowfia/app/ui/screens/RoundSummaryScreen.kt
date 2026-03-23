@@ -25,6 +25,7 @@ import com.meowfia.app.data.model.DawnReport
 import com.meowfia.app.data.model.Player
 import com.meowfia.app.ui.components.MeowfiaPrimaryButton
 import com.meowfia.app.ui.components.MeowfiaSecondaryButton
+import com.meowfia.app.ui.components.RoleIcon
 import com.meowfia.app.ui.theme.MeowfiaColors
 import kotlin.math.abs
 
@@ -145,7 +146,10 @@ private fun PlayerSummaryCard(
         colors = CardDefaults.cardColors(containerColor = MeowfiaColors.SurfaceElevated),
         border = BorderStroke(1.dp, alignmentColor.copy(alpha = 0.5f))
     ) {
-        Row(modifier = Modifier.padding(12.dp)) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row {
                     Text(
@@ -184,6 +188,8 @@ private fun PlayerSummaryCard(
                     fontSize = 13.sp
                 )
             }
+            Spacer(modifier = Modifier.width(10.dp))
+            RoleIcon(roleId = player.roleId, size = 44)
         }
     }
 }

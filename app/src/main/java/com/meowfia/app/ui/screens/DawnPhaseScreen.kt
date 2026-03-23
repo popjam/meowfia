@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -32,6 +34,10 @@ fun DawnPhaseScreen(
     onAllDone: () -> Unit
 ) {
     if (currentPlayerIndex >= players.size) {
+        LaunchedEffect(Unit) {
+            delay(3000)
+            onAllDone()
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -42,12 +48,17 @@ fun DawnPhaseScreen(
             Text(
                 text = "Everyone open your eyes!",
                 color = MeowfiaColors.TextPrimary,
-                fontSize = 22.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(32.dp))
-            MeowfiaPrimaryButton(text = "Start Day", onClick = onAllDone)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Next: Day Phase",
+                color = MeowfiaColors.Primary,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
         return
     }
@@ -91,31 +102,35 @@ fun DawnPhaseScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
             val delta = report.reportedEggDelta
+            val absDelta = kotlin.math.abs(delta)
             Text(
                 text = if (delta >= 0) "You gained" else "You lost",
                 color = MeowfiaColors.TextSecondary,
                 fontSize = 18.sp
             )
             Text(
-                text = "${kotlin.math.abs(delta)}",
+                text = "$absDelta",
                 color = MeowfiaColors.Primary,
                 fontSize = 64.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = if (kotlin.math.abs(delta) == 1) "egg" else "eggs",
+                text = if (absDelta == 1) "egg" else "eggs",
                 color = MeowfiaColors.TextSecondary,
                 fontSize = 18.sp
             )
-            if (delta >= 0) {
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (delta > 0) {
                 Text(
-                    text = "Draw $delta cards into your nest",
+                    text = "Draw $absDelta ${if (absDelta == 1) "card" else "cards"} into your nest",
                     color = MeowfiaColors.TextSecondary,
                     fontSize = 15.sp
                 )
-            } else {
+            } else if (delta < 0) {
                 Text(
-                    text = "Discard ${kotlin.math.abs(delta)} cards from your nest",
+                    text = "Discard $absDelta ${if (absDelta == 1) "card" else "cards"} from your nest",
                     color = MeowfiaColors.TextSecondary,
                     fontSize = 15.sp
                 )
@@ -136,7 +151,7 @@ fun DawnPhaseScreen(
                 for (info in report.additionalInfo) {
                     Text(
                         text = info,
-                        color = MeowfiaColors.TextSecondary,
+                        color = MeowfiaColors.Primary,
                         fontSize = 15.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(vertical = 2.dp)

@@ -33,6 +33,7 @@ fun HandoffGate(
     profileImage: Bitmap? = null,
     waitingMessage: String = "Pass the phone to:",
     showProfile: Boolean = true,
+    doneEnabled: Boolean = true,
     onComplete: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -57,7 +58,7 @@ fun HandoffGate(
                 if (showProfile) {
                     ProfileThumbnail(
                         bitmap = profileImage,
-                        size = 100
+                        size = 140
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -87,6 +88,7 @@ fun HandoffGate(
                 }
                 MeowfiaPrimaryButton(
                     text = "Done",
+                    enabled = doneEnabled,
                     onClick = {
                         state = GateState.WAITING
                         onComplete()

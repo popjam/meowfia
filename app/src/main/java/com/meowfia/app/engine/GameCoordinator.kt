@@ -149,6 +149,24 @@ class GameCoordinator(
             phase = GamePhase.DAWN
         )
 
+        // Apply role swaps from resolution (Frog, Switcheroo)
+        val roleSwaps = resolvedContext!!.getRoleSwaps()
+        val alignmentSwaps = resolvedContext!!.getAlignmentSwaps()
+        if (roleSwaps.isNotEmpty() || alignmentSwaps.isNotEmpty()) {
+            val swappedPlayers = state.players.map { player ->
+                val newRole = roleSwaps[player.id]
+                val newAlignment = alignmentSwaps[player.id]
+                when {
+                    newRole != null && newAlignment != null ->
+                        player.copy(roleId = newRole, alignment = newAlignment)
+                    newRole != null -> player.copy(roleId = newRole)
+                    newAlignment != null -> player.copy(alignment = newAlignment)
+                    else -> player
+                }
+            }
+            _state = state.copy(players = swappedPlayers)
+        }
+
         return state
     }
 

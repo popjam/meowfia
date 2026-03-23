@@ -76,14 +76,11 @@ enum class RoleId(
 
     // === FARM — Other Animals (not yet implemented) ===
     SHEEP("Sheep", CardType.FARM_ANIMAL,
-        "Visit a player. You are now their alignment.",
-        implemented = false),
+        "Visit a player. You are now their alignment."),
     FROG("Frog", CardType.FARM_ANIMAL,
-        "Visit a player and swap animals with them. You will learn your new animal.",
-        implemented = false),
+        "Visit a player and swap animals with them. You will learn your new animal."),
     SWITCHEROO("Switcheroo", CardType.FARM_ANIMAL,
-        "Visit a player. They will swap animals with the player they visited.",
-        implemented = false),
+        "Visit a player. They will swap animals with the player they visited."),
     KOALA("Koala", CardType.FARM_ANIMAL,
         "Visit a player and confuse them. Any players that visit you will become confused.",
         implemented = false),

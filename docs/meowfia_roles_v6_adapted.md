@@ -116,7 +116,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Start with a Wink. Visit a player and learn their role.
 
 > **Sphinx**
-> You will learn all of the roles in play. Choose a role — you will visit that player and learn who they are.
+> You will learn all of the farm roles in play. Choose a role — you will visit a player who is that role and learn who they are.
 
 > **Floofer**
 > Visit a player and hug them. Any players that visit you will be hugged. You cannot be hugged.

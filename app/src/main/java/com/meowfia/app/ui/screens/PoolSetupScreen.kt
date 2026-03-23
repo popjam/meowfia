@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Checkbox
@@ -31,6 +32,7 @@ import com.meowfia.app.data.model.CardType
 import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.ui.components.MeowfiaPrimaryButton
 import com.meowfia.app.ui.components.MeowfiaSecondaryButton
+import com.meowfia.app.ui.components.RoleIcon
 import com.meowfia.app.ui.theme.MeowfiaColors
 
 @Composable
@@ -212,7 +214,9 @@ fun PoolSetupScreen(
                                         uncheckedColor = MeowfiaColors.TextSecondary
                                     )
                                 )
-                                Column {
+                                RoleIcon(roleId = role, size = 36)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(role.displayName, color = MeowfiaColors.TextPrimary, fontSize = 16.sp)
                                     Text(role.description, color = MeowfiaColors.TextSecondary, fontSize = 13.sp)
                                 }
@@ -223,22 +227,43 @@ fun PoolSetupScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-        MeowfiaPrimaryButton(
-            text = "Start Game",
-            onClick = { onStartGame(selectedRoles.toList(), playerCount, botCount) },
-            enabled = selectedRoles.size > 2
-        )
         Spacer(modifier = Modifier.height(8.dp))
-        MeowfiaSecondaryButton(
-            text = "Use Default Roles",
-            onClick = {
-                val defaults = listOf(
-                    RoleId.PIGEON, RoleId.HOUSE_CAT,
-                    RoleId.HAWK, RoleId.OWL, RoleId.EAGLE
-                )
-                onStartGame(defaults, playerCount, botCount)
-            }
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            MeowfiaSecondaryButton(
+                text = "All Roles",
+                onClick = {
+                    val allImplemented = RoleId.entries.filter { it.implemented && !it.isBuffer }
+                    for (role in allImplemented) {
+                        if (role !in selectedRoles) selectedRoles.add(role)
+                    }
+                },
+                modifier = Modifier.weight(1f).height(44.dp)
+            )
+            MeowfiaSecondaryButton(
+                text = "Clear Roles",
+                onClick = {
+                    selectedRoles.removeAll { !it.isBuffer }
+                },
+                modifier = Modifier.weight(1f).height(44.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        if (selectedRoles.size > 2) {
+            MeowfiaPrimaryButton(
+                text = "Start Game",
+                onClick = { onStartGame(selectedRoles.toList(), playerCount, botCount) }
+            )
+        } else {
+            MeowfiaPrimaryButton(
+                text = "Start with Defaults",
+                onClick = {
+                    val defaults = listOf(RoleId.PIGEON, RoleId.HOUSE_CAT)
+                    onStartGame(defaults, playerCount, botCount)
+                }
+            )
+        }
     }
 }
