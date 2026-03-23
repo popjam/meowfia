@@ -6,6 +6,7 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.engine.ResolutionContext
 import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.roles.RoleHandler
+import com.meowfia.app.roles.TargetPreference
 
 /** Visit a player. They swap animals with whoever they visited. Neither player is informed. */
 class SwitcherooHandler : RoleHandler {
@@ -43,6 +44,8 @@ class SwitcherooHandler : RoleHandler {
 
         context.log("${actor.name} (Switcheroo) caused ${target.name} and ${visitTarget.name} to swap roles. ${target.name} → ${visitTargetRole.displayName}, ${visitTarget.name} → ${targetRole.displayName}.")
     }
+
+    override fun getTargetPreference(actor: Player) = TargetPreference.ACTIVE_VISITORS
 
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
         return emptyList()

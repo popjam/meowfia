@@ -37,6 +37,8 @@ class BlackSwanHandler : RoleHandler {
         }
     }
 
+    override fun getSelfEggRange() = 0..1
+
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
         return context.getInfoFor(player.id)
     }

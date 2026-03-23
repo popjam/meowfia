@@ -6,6 +6,7 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.engine.ResolutionContext
 import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.roles.RoleHandler
+import com.meowfia.app.roles.TargetPreference
 
 /** Gain eggs equal to the number of visitors your target received. */
 class EagleHandler : RoleHandler {
@@ -37,4 +38,7 @@ class EagleHandler : RoleHandler {
             context.log("${actor.name} (Eagle) visits ${target.name} — 0 visitors, no eggs.")
         }
     }
+
+    override fun getTargetPreference(actor: Player) = TargetPreference.INTERESTING_ROLES
+    override fun getSelfEggRange() = 0..5
 }

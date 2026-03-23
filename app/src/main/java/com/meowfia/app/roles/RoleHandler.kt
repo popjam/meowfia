@@ -32,4 +32,20 @@ interface RoleHandler {
 
     /** Returns how this player's role appears to investigators. */
     fun getApparentRole(player: Player): RoleId = player.roleId
+
+    /**
+     * Bot targeting hint: which alignment should a smart bot prefer to target?
+     * Defaults to [TargetPreference.RANDOM]. Override to provide role-specific targeting.
+     * This is called by [com.meowfia.app.bot.BotBrain] — new roles get smart bot
+     * behavior by overriding this method, with no changes to BotBrain itself.
+     */
+    fun getTargetPreference(actor: Player): TargetPreference = TargetPreference.RANDOM
+
+    /**
+     * Range of egg deltas this role can plausibly produce for ITSELF in one night
+     * (not counting eggs received from other visitors).
+     * Used by [com.meowfia.app.bot.BotClaimGenerator] for plausible lying.
+     * Defaults to 0..0 (most roles don't give eggs to self).
+     */
+    fun getSelfEggRange(): IntRange = 0..0
 }

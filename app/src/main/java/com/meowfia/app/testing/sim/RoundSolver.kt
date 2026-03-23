@@ -2,14 +2,22 @@ package com.meowfia.app.testing.sim
 
 import com.meowfia.app.data.model.Alignment
 import com.meowfia.app.data.model.DawnReport
+import com.meowfia.app.data.model.GamePhase
+import com.meowfia.app.data.model.GameState
+import com.meowfia.app.data.model.NightAction
+import com.meowfia.app.data.model.Player
 import com.meowfia.app.data.model.PlayerAssignment
+import com.meowfia.app.data.model.PoolCard
 import com.meowfia.app.data.model.RoleId
+import com.meowfia.app.engine.NightResolver
+import com.meowfia.app.util.RandomProvider
 
 /**
- * Analyzes a completed round to determine if Meowfia players are deducible
- * from public information (claims, egg deltas, pool composition, investigation results).
+ * Determines if a round is solvable by enumerating all possible Meowfia
+ * subsets and checking which are consistent with the claimed egg deltas.
  *
- * Works from the Farm perspective: given what everyone claimed, can we figure out who's lying?
+ * Uses the real [NightResolver] to simulate egg flow for each hypothesis,
+ * so new roles are automatically supported without changes here.
  */
 object RoundSolver {
 
@@ -24,26 +32,29 @@ object RoundSolver {
 
     data class SolvabilityResult(
         val solvability: Solvability,
-        /** Player IDs flagged as suspicious (empty for COIN_FLIP). */
+        /** Player IDs that appear as Meowfia in at least one consistent world. */
         val suspects: Set<Int>,
-        /** Player IDs cleared as definitely Farm (empty if none can be cleared). */
+        /** Player IDs that are never Meowfia in any consistent world. */
         val cleared: Set<Int>,
+        /** Number of consistent Meowfia subsets found. */
+        val consistentWorlds: Int,
+        /** Total candidate subsets evaluated. */
+        val totalCandidates: Int,
         /** Human-readable reasons for the deduction. */
         val reasons: List<String>,
-        /** Total player count (for context). */
         val playerCount: Int,
-        /** Actual Meowfia count (for validation). */
         val meowfiaCount: Int
     )
 
     /**
-     * Analyze a round's public information to determine solvability.
+     * Analyze a round by trying every possible Meowfia subset and simulating
+     * egg flow with the real engine to check consistency with claimed deltas.
      *
-     * @param claims Each player's day claim (role, target, egg delta). Indexed by player ID.
-     * @param pool The revealed pool of roles for this round.
-     * @param dawnReports Each player's dawn report (for investigation info).
-     * @param assignments Ground truth assignments (used to validate, not for solving).
-     * @param visitGraph Who visited whom (public via claims, not the real graph).
+     * @param claims Each player's day claim (role, target, egg delta).
+     * @param pool The revealed pool for this round.
+     * @param dawnReports Dawn reports (for additional info cross-referencing).
+     * @param assignments Ground truth (for meowfiaCount; not used in deduction).
+     * @param visitGraph The claimed visit graph.
      */
     fun analyze(
         claims: Map<Int, ClaimData>,
@@ -52,33 +63,55 @@ object RoundSolver {
         assignments: List<PlayerAssignment>,
         visitGraph: Map<Int, Int?>
     ): SolvabilityResult {
-        val playerIds = claims.keys.toSet()
+        val playerIds = claims.keys.sorted()
         val playerCount = playerIds.size
         val meowfiaCount = assignments.count { it.alignment == Alignment.MEOWFIA }
         val reasons = mutableListOf<String>()
-        val suspects = mutableSetOf<Int>()
-        val cleared = mutableSetOf<Int>()
 
-        // --- Check 1: Role claim conflicts ---
-        checkRoleConflicts(claims, pool, suspects, cleared, reasons)
+        // Quick pre-check: role claim conflicts
+        val claimConflicts = findClaimConflicts(claims, pool)
+        reasons.addAll(claimConflicts)
 
-        // --- Check 2: Egg accounting ---
-        checkEggAccounting(claims, pool, playerCount, suspects, reasons)
+        // Enumerate all possible Meowfia subsets of size 0..playerCount
+        // For typical games (4-8 players), this is at most 2^8 = 256 subsets
+        val consistentMeowfiaPlayers = mutableSetOf<Int>()
+        var consistentWorlds = 0
+        var totalCandidates = 0
 
-        // --- Check 3: Investigation cross-reference ---
-        checkInvestigations(claims, dawnReports, assignments, suspects, cleared, reasons)
+        // Try subsets of each possible size (0, 1, 2, ...)
+        for (subsetSize in 0..playerCount) {
+            for (meowfiaSubset in combinations(playerIds, subsetSize)) {
+                totalCandidates++
+                if (isConsistent(meowfiaSubset.toSet(), claims, pool, visitGraph, playerIds)) {
+                    consistentWorlds++
+                    consistentMeowfiaPlayers.addAll(meowfiaSubset)
+                }
+            }
+        }
 
-        // --- Check 4: Target consistency ---
-        checkTargetConsistency(claims, suspects, reasons)
+        // Also run investigation cross-reference checks
+        val investigationReasons = checkInvestigations(claims, dawnReports)
+        reasons.addAll(investigationReasons)
 
-        // Classify result
+        // Determine suspects and cleared
+        val suspects = consistentMeowfiaPlayers
+        val cleared = playerIds.filter { it !in suspects }.toSet()
+
+        // Classify
         val solvability = when {
-            // If we've identified exactly the right number of suspects
-            suspects.size in 1..meowfiaCount && suspects.isNotEmpty() -> Solvability.SOLVED
-            // If cleared players narrow the field
-            cleared.size > 0 && (playerCount - cleared.size) <= meowfiaCount + 1 -> Solvability.SOLVED
-            // If we have some suspects or cleared players
-            suspects.isNotEmpty() || cleared.size > playerCount / 2 -> Solvability.NARROWED
+            consistentWorlds == 0 -> {
+                reasons.add("No consistent world found — someone's claims are impossible")
+                Solvability.SOLVED // Contradictions detected
+            }
+            consistentWorlds == 1 -> {
+                reasons.add("Exactly one consistent Meowfia assignment exists")
+                Solvability.SOLVED
+            }
+            suspects.size < playerCount -> {
+                reasons.add("${cleared.size} player(s) cleared, ${suspects.size} remain as suspects")
+                if (suspects.size <= meowfiaCount + 1) Solvability.SOLVED
+                else Solvability.NARROWED
+            }
             else -> Solvability.COIN_FLIP
         }
 
@@ -86,6 +119,8 @@ object RoundSolver {
             solvability = solvability,
             suspects = suspects,
             cleared = cleared,
+            consistentWorlds = consistentWorlds,
+            totalCandidates = totalCandidates,
             reasons = reasons,
             playerCount = playerCount,
             meowfiaCount = meowfiaCount
@@ -93,251 +128,161 @@ object RoundSolver {
     }
 
     /**
-     * Check 1: Do multiple players claim the same non-buffer role?
-     * Is anyone claiming a role not in the pool?
+     * Check if a hypothetical Meowfia subset is consistent with all claims.
+     * Farm players are assumed truthful; Meowfia players' claims are ignored.
+     * We simulate the egg flow using the Farm players' claimed roles and targets,
+     * then check if the resulting egg deltas match their claimed deltas.
      */
-    private fun checkRoleConflicts(
+    private fun isConsistent(
+        meowfiaSet: Set<Int>,
         claims: Map<Int, ClaimData>,
         pool: List<RoleId>,
-        suspects: MutableSet<Int>,
-        cleared: MutableSet<Int>,
-        reasons: MutableList<String>
-    ) {
-        val poolRoles = pool.filter { !it.isFlower }.map { it }.toMutableList()
-        // Buffers (Pigeon, House Cat) are always available as overflow
-        poolRoles.add(RoleId.PIGEON)
-        poolRoles.add(RoleId.HOUSE_CAT)
+        visitGraph: Map<Int, Int?>,
+        playerIds: List<Int>
+    ): Boolean {
+        // Step 1: Check role assignment feasibility
+        // Farm players' claimed roles must be assignable from the pool
+        val farmClaims = claims.filter { it.key !in meowfiaSet }
+        val claimedFarmRoles = farmClaims.values.map { it.claimedRole }
 
-        // Check for roles claimed that aren't in the pool at all
+        // Non-buffer roles can only be claimed once (unless Twinflower — not tracked here)
+        val nonBufferCounts = claimedFarmRoles.filter { !it.isBuffer }.groupingBy { it }.eachCount()
+        val poolCounts = pool.filter { !it.isFlower }.groupingBy { it }.eachCount()
+        for ((role, count) in nonBufferCounts) {
+            val available = (poolCounts[role] ?: 0) + if (role.isBuffer) Int.MAX_VALUE else 0
+            if (count > maxOf(1, available)) return false
+        }
+
+        // Step 2: Simulate egg flow using the real engine
+        // Build a hypothetical game state where Farm players have their claimed roles
+        // and Meowfia players have House Cat (the buffer Meowfia role)
+        val players = playerIds.map { id ->
+            val isMeowfia = id in meowfiaSet
+            val claim = claims[id]!!
+            Player(
+                id = id,
+                name = "P$id",
+                alignment = if (isMeowfia) Alignment.MEOWFIA else Alignment.FARM,
+                roleId = if (isMeowfia) RoleId.HOUSE_CAT else claim.claimedRole
+            )
+        }
+
+        // Build visit graph from claims (Farm players' claims are truth, Meowfia pick random)
+        val simVisitGraph = mutableMapOf<Int, Int?>()
+        for (id in playerIds) {
+            val claim = claims[id]!!
+            simVisitGraph[id] = claim.claimedTargetId
+        }
+
+        val gameState = GameState(
+            roundNumber = 1,
+            players = players,
+            pool = pool.map { PoolCard(it) },
+            dealerSeat = 0,
+            nightActions = playerIds.associateWith { id ->
+                val claim = claims[id]!!
+                when {
+                    claim.claimedTargetId != null -> NightAction.VisitPlayer(claim.claimedTargetId)
+                    claim.claimedRole == RoleId.BLACK_SWAN -> NightAction.VisitSelf
+                    claim.claimedRole == RoleId.TURKEY -> NightAction.NoVisit
+                    claim.claimedRole in setOf(RoleId.MOSQUITO, RoleId.TIT) -> NightAction.VisitRandom
+                    else -> NightAction.NoVisit
+                }
+            },
+            nightResults = emptyMap(),
+            dawnReports = emptyMap(),
+            activeFlowers = emptyList(),
+            visitGraph = simVisitGraph,
+            phase = GamePhase.NIGHT,
+            cawCawCount = 0,
+            eliminatedPlayerId = null
+        )
+
+        // Run the real night resolver
+        val resolver = NightResolver(RandomProvider(0))
+        val context = resolver.resolve(gameState)
+
+        // Step 3: Check if computed egg deltas match Farm players' claimed deltas
+        for ((id, claim) in farmClaims) {
+            val computedDelta = context.getClampedEggDelta(id)
+            if (computedDelta != claim.claimedEggDelta) return false
+        }
+
+        return true
+    }
+
+    /** Find obvious claim conflicts (duplicate non-buffer roles, roles not in pool). */
+    private fun findClaimConflicts(
+        claims: Map<Int, ClaimData>,
+        pool: List<RoleId>
+    ): List<String> {
+        val reasons = mutableListOf<String>()
+        val poolRoles = pool.filter { !it.isFlower }.toSet() + setOf(RoleId.PIGEON, RoleId.HOUSE_CAT)
+
         for ((playerId, claim) in claims) {
             if (claim.claimedRole !in poolRoles && !claim.claimedRole.isBuffer) {
-                suspects.add(playerId)
-                reasons.add("Player $playerId claims ${claim.claimedRole.displayName} which isn't in the pool")
+                reasons.add("Player $playerId claims ${claim.claimedRole.displayName} not in pool")
             }
         }
 
-        // Check for duplicate non-buffer claims
-        val roleClaims = claims.entries
-            .groupBy { it.value.claimedRole }
+        val roleClaims = claims.entries.groupBy { it.value.claimedRole }
             .filter { (role, claimants) -> !role.isBuffer && claimants.size > 1 }
-
         for ((role, claimants) in roleClaims) {
-            val ids = claimants.map { it.key }
-            // Pool has limited copies — count how many of this role are in pool
-            val poolCount = pool.count { it == role }
-            if (ids.size > maxOf(1, poolCount)) {
-                suspects.addAll(ids)
-                reasons.add("${ids.size} players claim ${role.displayName} but pool only has $poolCount")
-            }
+            reasons.add("${claimants.size} players claim ${role.displayName}")
         }
+
+        return reasons
     }
 
-    /**
-     * Check 2: Do the total eggs claimed add up given the pool composition?
-     * Each egg-laying role produces a known amount — if the total claimed received
-     * eggs exceed what the pool could produce, someone's lying about their delta.
-     */
-    private fun checkEggAccounting(
-        claims: Map<Int, ClaimData>,
-        pool: List<RoleId>,
-        playerCount: Int,
-        suspects: MutableSet<Int>,
-        reasons: MutableList<String>
-    ) {
-        // Maximum eggs the pool could produce in one night
-        val maxPoolEggs = pool.sumOf { role ->
-            when (role) {
-                RoleId.CHICKEN -> 2
-                RoleId.PIGEON, RoleId.MOSQUITO, RoleId.TIT, RoleId.FALCON -> 1
-                RoleId.OWL -> 1  // Owl lays 1 if no visitors on target
-                RoleId.EAGLE -> playerCount - 1  // Theoretical max (all visitors on one target)
-                RoleId.HAWK -> 1  // Hawk gains 1 if target is Meowfia
-                RoleId.BLACK_SWAN -> 1
-                else -> 0
-            }
-        }
-        // Add Turkey eggs: each visitor to Turkey gets 1 egg
-        val hasTurkey = pool.contains(RoleId.TURKEY)
-        val turkeyMax = if (hasTurkey) playerCount - 1 else 0
-
-        val totalMaxEggs = maxPoolEggs + turkeyMax
-
-        // Sum of all claimed positive deltas
-        val totalClaimedPositive = claims.values.sumOf { maxOf(0, it.claimedEggDelta) }
-
-        if (totalClaimedPositive > totalMaxEggs) {
-            reasons.add("Total claimed positive eggs ($totalClaimedPositive) exceeds pool maximum ($totalMaxEggs)")
-            // Flag players with highest deltas as most suspicious
-            val sorted = claims.entries.sortedByDescending { it.value.claimedEggDelta }
-            val excess = totalClaimedPositive - totalMaxEggs
-            var remaining = excess
-            for ((playerId, claim) in sorted) {
-                if (remaining <= 0) break
-                if (claim.claimedEggDelta > 0) {
-                    suspects.add(playerId)
-                    remaining -= claim.claimedEggDelta
-                }
-            }
-        }
-
-        // Per-player egg verification: if someone claims to have received eggs
-        // from a role that claims to have visited someone ELSE, that's a conflict
-        val layerVisits = mutableMapOf<Int, MutableList<Pair<RoleId, Int>>>() // targetId -> [(role, eggs)]
-        for ((playerId, claim) in claims) {
-            val eggsLaid = when (claim.claimedRole) {
-                RoleId.PIGEON -> 1
-                RoleId.CHICKEN -> 2
-                RoleId.MOSQUITO -> 1
-                RoleId.TIT -> 1
-                RoleId.FALCON -> 1  // Indirect, harder to track
-                RoleId.OWL -> 1  // Only if no visitors
-                else -> 0
-            }
-            if (eggsLaid > 0 && claim.claimedTargetId != null) {
-                layerVisits.getOrPut(claim.claimedTargetId) { mutableListOf() }
-                    .add(claim.claimedRole to eggsLaid)
-            }
-        }
-
-        // Check: does each player's claimed delta at least roughly match incoming eggs?
-        for ((playerId, claim) in claims) {
-            val incomingEggs = layerVisits[playerId]?.sumOf { it.second } ?: 0
-            val selfEggs = when (claim.claimedRole) {
-                RoleId.HAWK -> if (claim.claimedEggDelta > incomingEggs) 1 else 0
-                RoleId.BLACK_SWAN -> if (claim.claimedEggDelta > incomingEggs) 1 else 0
-                RoleId.EAGLE -> maxOf(0, claim.claimedEggDelta - incomingEggs)
-                else -> 0
-            }
-            val expectedMax = incomingEggs + selfEggs + 1  // +1 for Turkey/untracked
-            if (claim.claimedEggDelta > expectedMax + 1) {
-                suspects.add(playerId)
-                reasons.add("Player $playerId claims ${claim.claimedEggDelta} eggs but max accountable is ~$expectedMax")
-            }
-        }
-    }
-
-    /**
-     * Check 3: Cross-reference investigation results.
-     * - Hawk with +1 egg → their target should be Meowfia
-     * - Owl info about visitor animals → should match who claims to have visited
-     */
+    /** Cross-reference Owl investigation info with visit claims. */
     private fun checkInvestigations(
         claims: Map<Int, ClaimData>,
-        dawnReports: List<DawnReport>,
-        assignments: List<PlayerAssignment>,
-        suspects: MutableSet<Int>,
-        cleared: MutableSet<Int>,
-        reasons: MutableList<String>
-    ) {
+        dawnReports: List<DawnReport>
+    ): List<String> {
+        val reasons = mutableListOf<String>()
+
         for ((playerId, claim) in claims) {
+            if (claim.claimedRole != RoleId.OWL) continue
             val report = dawnReports.find { it.playerId == playerId } ?: continue
+            val targetId = claim.claimedTargetId ?: continue
 
-            when (claim.claimedRole) {
-                RoleId.HAWK -> {
-                    // If Hawk claims +1 from investigation (not just from visitors),
-                    // and we can verify via dawn report, their target is Meowfia
-                    if (claim.claimedEggDelta > 0 && claim.claimedTargetId != null) {
-                        // This is info the Hawk has — they know their target's alignment
-                        // Other players can use this if they trust the Hawk claim
-                        val targetAssignment = assignments.find { it.playerId == claim.claimedTargetId }
-                        if (targetAssignment != null && report.additionalInfo.isEmpty()) {
-                            // Hawk doesn't get dawn info — egg delta is the signal
-                            // If a trusted Hawk says they got an egg, target is suspicious
-                            // But we can't distinguish Hawk's self-egg from visitor eggs easily
-                        }
+            for (info in report.additionalInfo) {
+                if (info.contains("No animals visited")) {
+                    val visitorsToTarget = claims.entries
+                        .filter { it.value.claimedTargetId == targetId && it.key != playerId }
+                    if (visitorsToTarget.isNotEmpty()) {
+                        reasons.add("Owl says nobody visited $targetId but ${visitorsToTarget.size} claim they did")
                     }
                 }
-                RoleId.OWL -> {
-                    // Owl's dawn info lists visitor animals
-                    // If Owl says "Pigeon visited X" but nobody claims Pigeon visiting X,
-                    // either the Owl or the Pigeon is lying
-                    for (info in report.additionalInfo) {
-                        if (info.contains("Animals that visited")) {
-                            val animalNames = info.substringAfter(": ").removeSuffix(".")
-                                .split(", ")
-                            val targetId = claim.claimedTargetId ?: continue
-
-                            // Check if claimed visitors match who says they visited this target
-                            val claimedVisitors = claims.entries
-                                .filter { it.value.claimedTargetId == targetId && it.key != playerId }
-                                .map { it.value.claimedRole.displayName }
-
-                            for (animal in animalNames) {
-                                if (animal !in claimedVisitors) {
-                                    reasons.add("Owl reports $animal visited player $targetId but no one claims that role visiting them")
-                                }
-                            }
-                            for (visitor in claimedVisitors) {
-                                if (visitor !in animalNames && visitor != "Owl") {
-                                    reasons.add("Player claims ${visitor} visited $targetId but Owl didn't see them")
-                                }
-                            }
-                        }
-                        if (info.contains("No animals visited")) {
-                            val targetId = claim.claimedTargetId ?: continue
-                            val visitorsToTarget = claims.entries
-                                .filter { it.value.claimedTargetId == targetId && it.key != playerId }
-                            if (visitorsToTarget.isNotEmpty()) {
-                                val conflicting = visitorsToTarget.map { it.key }
-                                suspects.addAll(conflicting)
-                                reasons.add("Owl says nobody visited player $targetId but ${conflicting.size} player(s) claim they did")
-                            }
-                        }
-                    }
-                }
-                else -> { /* No investigation info to cross-reference */ }
             }
         }
 
-        // Players whose claims are fully consistent with all other evidence get cleared
-        // (simplified: players not in suspects with consistent claims)
-        for (playerId in claims.keys) {
-            if (playerId !in suspects) {
-                val claim = claims[playerId] ?: continue
-                // If their role claim matches pool and no conflicts found, tentatively clear
-                val isRoleInPool = claim.claimedRole.isBuffer ||
-                    claims.values.count { it.claimedRole == claim.claimedRole } == 1
-                if (isRoleInPool && claim.claimedEggDelta >= 0 && claim.claimedEggDelta <= 3) {
-                    cleared.add(playerId)
-                }
-            }
-        }
+        return reasons
     }
 
-    /**
-     * Check 4: Target claim consistency.
-     * - Turkey shouldn't claim visiting someone
-     * - Black Swan should claim visiting self
-     * - Players claiming auto-target roles (Mosquito/Tit) shouldn't name specific targets
-     */
-    private fun checkTargetConsistency(
-        claims: Map<Int, ClaimData>,
-        suspects: MutableSet<Int>,
-        reasons: MutableList<String>
-    ) {
-        for ((playerId, claim) in claims) {
-            when (claim.claimedRole) {
-                RoleId.TURKEY -> {
-                    if (claim.claimedTargetId != null) {
-                        suspects.add(playerId)
-                        reasons.add("Player $playerId claims Turkey but also claims visiting someone")
-                    }
-                }
-                RoleId.BLACK_SWAN -> {
-                    if (claim.claimedTargetId != null && claim.claimedTargetId != playerId) {
-                        suspects.add(playerId)
-                        reasons.add("Player $playerId claims Black Swan but claims visiting someone other than self")
-                    }
-                }
-                else -> { /* Most roles visit others — fine */ }
+    /** Generate all combinations of [size] elements from [items]. */
+    private fun <T> combinations(items: List<T>, size: Int): List<List<T>> {
+        if (size == 0) return listOf(emptyList())
+        if (size > items.size) return emptyList()
+        if (size == items.size) return listOf(items)
+
+        val result = mutableListOf<List<T>>()
+        fun recurse(start: Int, current: List<T>) {
+            if (current.size == size) {
+                result.add(current)
+                return
+            }
+            for (i in start until items.size) {
+                recurse(i + 1, current + items[i])
             }
         }
+        recurse(0, emptyList())
+        return result
     }
 }
 
 /**
  * Structured claim data extracted from a player's day claim.
- * Used by the solver for analysis.
  */
 data class ClaimData(
     val playerId: Int,
