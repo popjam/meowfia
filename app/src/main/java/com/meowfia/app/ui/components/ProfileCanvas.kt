@@ -176,8 +176,9 @@ fun ProfileThumbnail(
     size: Int = 64
 ) {
     if (bitmap != null) {
+        val imageBitmap = remember(bitmap) { bitmap.asImageBitmap() }
         Image(
-            bitmap = bitmap.asImageBitmap(),
+            bitmap = imageBitmap,
             contentDescription = "Player profile",
             modifier = modifier
                 .size(size.dp)

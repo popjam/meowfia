@@ -24,6 +24,7 @@ import com.meowfia.app.ui.screens.PlayerRegistrationScreen
 import com.meowfia.app.ui.screens.PoolSetupScreen
 import com.meowfia.app.ui.screens.PoolViewerScreen
 import com.meowfia.app.ui.screens.RoundSummaryScreen
+import com.meowfia.app.ui.screens.SimulationScreen
 import com.meowfia.app.ui.screens.StartScreen
 import com.meowfia.app.ui.screens.VotingResultScreen
 
@@ -37,6 +38,7 @@ sealed class MeowfiaRoute(val route: String) {
     data object VotingResult : MeowfiaRoute("voting_result")
     data object RoundSummary : MeowfiaRoute("round_summary")
     data object PoolViewer : MeowfiaRoute("pool_viewer")
+    data object Simulation : MeowfiaRoute("simulation")
 }
 
 @Composable
@@ -61,7 +63,8 @@ fun GameNavGraph(navController: NavHostController) {
         composable(MeowfiaRoute.Start.route) {
             StartScreen(
                 onNewGame = { navController.navigate(MeowfiaRoute.PoolSetup.route) },
-                onViewRoles = { navController.navigate(MeowfiaRoute.PoolViewer.route) }
+                onViewRoles = { navController.navigate(MeowfiaRoute.PoolViewer.route) },
+                onSimulation = { navController.navigate(MeowfiaRoute.Simulation.route) }
             )
         }
 
@@ -354,6 +357,12 @@ fun GameNavGraph(navController: NavHostController) {
 
         composable(MeowfiaRoute.PoolViewer.route) {
             PoolViewerScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(MeowfiaRoute.Simulation.route) {
+            SimulationScreen(
                 onBack = { navController.popBackStack() }
             )
         }

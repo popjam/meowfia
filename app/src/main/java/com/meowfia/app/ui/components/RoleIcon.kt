@@ -9,9 +9,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -23,50 +23,65 @@ private val FARM_BG = 0xFF2E7D32.toInt()     // dark green
 private val MEOWFIA_BG = 0xFFC62828.toInt()  // dark red
 private val FLOWER_BG = 0xFF6A1B9A.toInt()   // purple
 
+/** Static cache of role icon bitmaps — generated once, reused everywhere. */
+private object RoleIconCache {
+    private val bitmapCache = mutableMapOf<RoleId, Bitmap>()
+    private val imageBitmapCache = mutableMapOf<RoleId, ImageBitmap>()
+
+    fun getBitmap(roleId: RoleId): Bitmap {
+        return bitmapCache.getOrPut(roleId) { renderRoleIcon(roleId) }
+    }
+
+    fun getImageBitmap(roleId: RoleId): ImageBitmap {
+        return imageBitmapCache.getOrPut(roleId) { getBitmap(roleId).asImageBitmap() }
+    }
+
+    private fun renderRoleIcon(roleId: RoleId, size: Int = 200): Bitmap {
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val bgColor = when (roleId.cardType) {
+            CardType.FARM_ANIMAL -> FARM_BG
+            CardType.MEOWFIA_ANIMAL -> MEOWFIA_BG
+            CardType.FLOWER -> FLOWER_BG
+        }
+
+        val bgPaint = Paint().apply {
+            color = bgColor
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, bgPaint)
+
+        val initials = roleId.displayName
+            .split(" ")
+            .take(2)
+            .joinToString("") { it.first().uppercase() }
+
+        val textPaint = Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = size * (if (initials.length > 1) 0.33f else 0.45f)
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+            isAntiAlias = true
+        }
+        val textY = size / 2f - (textPaint.descent() + textPaint.ascent()) / 2f
+        canvas.drawText(initials, size / 2f, textY, textPaint)
+
+        return bitmap
+    }
+}
+
 /**
- * Generate a placeholder role icon bitmap.
- * Colored circle with the first letter(s) of the role name.
- * Farm = green, Meowfia = red, Flower = purple.
+ * Generate a placeholder role icon bitmap. Uses static cache.
  */
 fun generateRoleIcon(roleId: RoleId, size: Int = 200): Bitmap {
-    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-
-    val bgColor = when (roleId.cardType) {
-        CardType.FARM_ANIMAL -> FARM_BG
-        CardType.MEOWFIA_ANIMAL -> MEOWFIA_BG
-        CardType.FLOWER -> FLOWER_BG
-    }
-
-    val bgPaint = Paint().apply {
-        color = bgColor
-        style = Paint.Style.FILL
-        isAntiAlias = true
-    }
-    canvas.drawCircle(size / 2f, size / 2f, size / 2f, bgPaint)
-
-    // Draw initials (first 1-2 chars)
-    val initials = roleId.displayName
-        .split(" ")
-        .take(2)
-        .joinToString("") { it.first().uppercase() }
-
-    val textPaint = Paint().apply {
-        color = android.graphics.Color.WHITE
-        textSize = size * (if (initials.length > 1) 0.33f else 0.45f)
-        textAlign = Paint.Align.CENTER
-        typeface = Typeface.DEFAULT_BOLD
-        isAntiAlias = true
-    }
-    val textY = size / 2f - (textPaint.descent() + textPaint.ascent()) / 2f
-    canvas.drawText(initials, size / 2f, textY, textPaint)
-
-    return bitmap
+    return RoleIconCache.getBitmap(roleId)
 }
 
 /**
  * Displays a role icon as a circular thumbnail.
- * Uses placeholder generated icons for now — will be replaced with real art later.
+ * Uses cached bitmaps — zero allocation during recomposition/scrolling.
  */
 @Composable
 fun RoleIcon(
@@ -74,7 +89,7 @@ fun RoleIcon(
     modifier: Modifier = Modifier,
     size: Int = 48
 ) {
-    val bitmap = remember(roleId) { generateRoleIcon(roleId, 200) }
+    val imageBitmap = RoleIconCache.getImageBitmap(roleId)
     val borderColor = when (roleId.cardType) {
         CardType.FARM_ANIMAL -> MeowfiaColors.Farm
         CardType.MEOWFIA_ANIMAL -> MeowfiaColors.Meowfia
@@ -82,7 +97,7 @@ fun RoleIcon(
     }
 
     Image(
-        bitmap = bitmap.asImageBitmap(),
+        bitmap = imageBitmap,
         contentDescription = roleId.displayName,
         modifier = modifier
             .size(size.dp)

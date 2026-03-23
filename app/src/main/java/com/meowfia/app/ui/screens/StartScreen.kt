@@ -1,5 +1,7 @@
 package com.meowfia.app.ui.screens
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +10,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -21,8 +27,12 @@ import com.meowfia.app.ui.theme.MeowfiaColors
 @Composable
 fun StartScreen(
     onNewGame: () -> Unit,
-    onViewRoles: () -> Unit
+    onViewRoles: () -> Unit,
+    onSimulation: (() -> Unit)? = null
 ) {
+    var titleTapCount by remember { mutableIntStateOf(0) }
+    val devMode = titleTapCount >= 5
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -37,7 +47,11 @@ fun StartScreen(
             color = MeowfiaColors.Primary,
             fontSize = 48.sp,
             fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            modifier = Modifier.clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { titleTapCount++ }
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
@@ -48,6 +62,14 @@ fun StartScreen(
         )
 
         Spacer(modifier = Modifier.weight(1f))
+
+        if (devMode && onSimulation != null) {
+            MeowfiaSecondaryButton(
+                text = "Simulation Mode",
+                onClick = onSimulation
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         MeowfiaPrimaryButton(
             text = "New Game",
@@ -61,8 +83,8 @@ fun StartScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "3-8 players · 1 phone · lots of eggs",
-            color = MeowfiaColors.TextSecondary,
+            text = if (devMode) "Developer mode enabled" else "3-8 players · 1 phone · lots of eggs",
+            color = if (devMode) MeowfiaColors.Primary else MeowfiaColors.TextSecondary,
             fontSize = 14.sp,
             textAlign = TextAlign.Center
         )
