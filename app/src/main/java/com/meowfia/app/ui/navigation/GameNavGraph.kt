@@ -23,6 +23,7 @@ import com.meowfia.app.ui.screens.NightPhaseScreen
 import com.meowfia.app.ui.screens.PlayerRegistrationScreen
 import com.meowfia.app.ui.screens.PoolSetupScreen
 import com.meowfia.app.ui.screens.PoolViewerScreen
+import com.meowfia.app.ui.screens.PostRoundAnalysisScreen
 import com.meowfia.app.ui.screens.RoundSummaryScreen
 import com.meowfia.app.ui.screens.SimulationScreen
 import com.meowfia.app.ui.screens.StartScreen
@@ -37,6 +38,7 @@ sealed class MeowfiaRoute(val route: String) {
     data object DayTimer : MeowfiaRoute("day_timer")
     data object VotingResult : MeowfiaRoute("voting_result")
     data object RoundSummary : MeowfiaRoute("round_summary")
+    data object PostRoundAnalysis : MeowfiaRoute("post_round_analysis")
     data object PoolViewer : MeowfiaRoute("pool_viewer")
     data object Simulation : MeowfiaRoute("simulation")
 }
@@ -314,6 +316,9 @@ fun GameNavGraph(navController: NavHostController) {
                 dawnReports = state.dawnReports,
                 eliminatedPlayerId = state.eliminatedPlayerId,
                 winningTeam = GameSession.coordinator.getWinningTeam(),
+                onViewAnalysis = {
+                    navController.navigate(MeowfiaRoute.PostRoundAnalysis.route)
+                },
                 onNextRound = {
                     roundNumber++
                     currentPlayerIndex = 0
@@ -352,6 +357,14 @@ fun GameNavGraph(navController: NavHostController) {
                         popUpTo(MeowfiaRoute.Start.route) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(MeowfiaRoute.PostRoundAnalysis.route) {
+            val analysis = remember { GameSession.coordinator.getPostRoundAnalysis() }
+            PostRoundAnalysisScreen(
+                analysis = analysis,
+                onBack = { navController.popBackStack() }
             )
         }
 

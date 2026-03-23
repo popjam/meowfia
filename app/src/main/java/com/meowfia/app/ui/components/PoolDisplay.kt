@@ -38,7 +38,7 @@ fun PoolDisplay(
         contentPadding = PaddingValues(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(pool) { card ->
+        items(pool, key = { it.roleId.name }) { card ->
             val borderColor = when (card.cardType) {
                 CardType.FARM_ANIMAL -> MeowfiaColors.Farm
                 CardType.MEOWFIA_ANIMAL -> MeowfiaColors.Meowfia

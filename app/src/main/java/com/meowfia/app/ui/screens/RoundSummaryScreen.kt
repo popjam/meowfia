@@ -16,6 +16,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,11 +38,16 @@ fun RoundSummaryScreen(
     dawnReports: Map<Int, DawnReport>,
     eliminatedPlayerId: Int?,
     winningTeam: Alignment?,
+    onViewAnalysis: () -> Unit = {},
     onNextRound: () -> Unit,
     onEndGame: () -> Unit
 ) {
-    val winners = if (winningTeam != null) players.filter { it.alignment == winningTeam } else emptyList()
-    val losers = if (winningTeam != null) players.filter { it.alignment != winningTeam } else players
+    val winners = remember(winningTeam, players) {
+        if (winningTeam != null) players.filter { it.alignment == winningTeam } else emptyList()
+    }
+    val losers = remember(winningTeam, players) {
+        if (winningTeam != null) players.filter { it.alignment != winningTeam } else players
+    }
 
     Column(
         modifier = Modifier
@@ -68,7 +74,7 @@ fun RoundSummaryScreen(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
-                items(winners) { player ->
+                items(winners, key = { it.id }) { player ->
                     PlayerSummaryCard(
                         player = player,
                         visitGraph = visitGraph,
@@ -92,7 +98,7 @@ fun RoundSummaryScreen(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
-                items(losers) { player ->
+                items(losers, key = { it.id }) { player ->
                     PlayerSummaryCard(
                         player = player,
                         visitGraph = visitGraph,
@@ -106,6 +112,8 @@ fun RoundSummaryScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+        MeowfiaSecondaryButton(text = "View Detailed Analysis", onClick = onViewAnalysis)
+        Spacer(modifier = Modifier.height(8.dp))
         MeowfiaPrimaryButton(text = "Next Round", onClick = onNextRound)
         Spacer(modifier = Modifier.height(8.dp))
         MeowfiaSecondaryButton(text = "End Game", onClick = onEndGame)

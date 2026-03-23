@@ -221,7 +221,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.SimResultsView(
 
     // Round-by-round details
     LazyColumn(modifier = Modifier.weight(1f)) {
-        items(result.roundLogs) { roundLog ->
+        items(result.roundLogs, key = { it.roundNum }) { roundLog ->
             RoundDetailCard(roundLog = roundLog, strategies = result.strategies)
             Spacer(modifier = Modifier.height(8.dp))
         }
