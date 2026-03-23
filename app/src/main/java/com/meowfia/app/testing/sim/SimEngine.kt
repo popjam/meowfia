@@ -31,7 +31,8 @@ class SimEngine(private val config: SimConfig) {
         FlowerRegistry.initialize()
 
         val names = config.playerNames ?: SimConfig.DEFAULT_NAMES.take(config.playerCount)
-        val strategies = config.strategies ?: SimStrategyArchetypes.assignToPlayers(config.playerCount, random)
+        val strategies = config.strategies
+            ?: SimStrategyArchetypes.assignForDistribution(config.playerCount, config.strategyDistribution, random)
         val deck = SimDeck.create(random)
         val discard = mutableListOf<SimCard>()
 
@@ -66,6 +67,10 @@ class SimEngine(private val config: SimConfig) {
             // Accumulate metrics
             for (a in roundLog.assignments) {
                 roleAssignmentCounts[a.roleId] = (roleAssignmentCounts[a.roleId] ?: 0) + 1
+                val dawn = roundLog.dawnReports.find { it.playerId == a.playerId }
+                if (dawn != null) {
+                    roleEggTotals.getOrPut(a.roleId) { mutableListOf() }.add(dawn.actualEggDelta)
+                }
             }
 
             val mc = roundLog.meowfiaCount
@@ -166,12 +171,14 @@ class SimEngine(private val config: SimConfig) {
         // Resolution (real engine)
         val resolvedState = coordinator.resolveNight()
         log.resolutionNarrative = resolvedState.nightResults.values.map { it.narrative }.distinct()
+        log.visitGraph = resolvedState.visitGraph.mapNotNull { (k, v) -> v?.let { k to it } }.toMap()
 
         // Dawn
         val dawnReports = (0 until config.playerCount).map { pid ->
             coordinator.getDawnReport(pid)
         }
         log.dawnReports = dawnReports
+        log.confusedPlayers = dawnReports.count { it.isConfused }
 
         // v6: draw or discard based on egg delta
         for (report in dawnReports) {
@@ -209,8 +216,11 @@ class SimEngine(private val config: SimConfig) {
 
     private fun generateRandomPool(): List<PoolCard> {
         val base = listOf(PoolCard(RoleId.PIGEON), PoolCard(RoleId.HOUSE_CAT))
+        val allowed = config.allowedRoles
         val candidates = RoleId.entries.filter { role ->
-            role.implemented && !role.isBuffer && (config.includeFlowers || !role.isFlower)
+            role.implemented && !role.isBuffer &&
+                (config.includeFlowers || !role.isFlower) &&
+                (allowed == null || role in allowed)
         }
         val revealed = random.shuffle(candidates).take(3)
         return base + revealed.map { PoolCard(it) }

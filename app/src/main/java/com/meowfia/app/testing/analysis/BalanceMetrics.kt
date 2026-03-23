@@ -1,6 +1,7 @@
 package com.meowfia.app.testing.analysis
 
 import com.meowfia.app.data.model.Alignment
+import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.testing.sim.SimConfig
 import com.meowfia.app.testing.sim.SimGameResult
 import kotlin.math.abs
@@ -56,7 +57,6 @@ object BalanceMetrics {
             if (nRounds < 3) continue
 
             val midRoundIdx = nRounds / 2 - 1
-            // perRoundDeltas stores absolute post-round scores (despite the field name)
             val midScores = result.perRoundDeltas.map { it.getOrElse(midRoundIdx) { 0 } }
             val finalScores = result.finalScores
 
@@ -103,16 +103,87 @@ object BalanceMetrics {
         val roleMetrics = RoleMetrics.analyze(results)
         val nightMetrics = NightMetrics.analyze(results)
 
+        // Score percentiles
+        val sortedScores = flatScores.sorted()
+        val scorePercentiles = if (sortedScores.isNotEmpty()) {
+            ScorePercentiles(
+                p10 = percentile(sortedScores, 0.10),
+                p25 = percentile(sortedScores, 0.25),
+                p75 = percentile(sortedScores, 0.75),
+                p90 = percentile(sortedScores, 0.90)
+            )
+        } else {
+            ScorePercentiles(0.0, 0.0, 0.0, 0.0)
+        }
+
+        // Elimination accuracy
+        val eliminationAccuracy = if (results.isNotEmpty()) {
+            results.map { it.eliminationAccuracy }.average()
+        } else 0.0
+
+        // Per-round avg scores
+        val maxRounds = results.maxOfOrNull { it.roundLogs.size } ?: 0
+        val perRoundAvgScores = (0 until maxRounds).map { roundIdx ->
+            val scoresAtRound = results.flatMap { result ->
+                result.perRoundDeltas.mapNotNull { deltas ->
+                    deltas.getOrNull(roundIdx)
+                }
+            }
+            if (scoresAtRound.isNotEmpty()) scoresAtRound.average() else 0.0
+        }
+
+        // Role win rates
+        val roleWinRates = roleMetrics.mapValues { it.value.teamWinRate }
+
+        // Voting patterns
+        var totalVotesOnEliminated = 0
+        var unanimousRounds = 0
+        var votingRounds = 0
+        for (result in results) {
+            for (log in result.roundLogs) {
+                val vr = log.votingResult ?: continue
+                votingRounds++
+                val elimVotes = vr.votes[vr.eliminatedId] ?: 0
+                totalVotesOnEliminated += elimVotes
+                val totalVotes = vr.votes.values.sum()
+                if (elimVotes == totalVotes) unanimousRounds++
+            }
+        }
+        val avgVotesPerElimination = if (votingRounds > 0) {
+            totalVotesOnEliminated.toDouble() / votingRounds
+        } else 0.0
+        val unanimousVoteRate = if (votingRounds > 0) {
+            unanimousRounds.toDouble() / votingRounds
+        } else 0.0
+
+        // Comeback frequency: leader at midpoint didn't win
+        var comebackCount = 0
+        var eligibleGames = 0
+        for (result in results) {
+            val nRounds = result.roundLogs.size
+            if (nRounds < 3) continue
+            eligibleGames++
+            val midRoundIdx = nRounds / 2 - 1
+            val midScores = result.perRoundDeltas.map { it.getOrElse(midRoundIdx) { 0 } }
+            val midLeader = midScores.indices.maxByOrNull { midScores[it] } ?: continue
+            val finalWinner = result.finalScores.indices.maxByOrNull { result.finalScores[it] } ?: continue
+            if (midLeader != finalWinner) comebackCount++
+        }
+        val comebackFrequency = if (eligibleGames > 0) {
+            comebackCount.toDouble() / eligibleGames
+        } else 0.0
+
         return BatchStatistics(
             nGames = results.size,
             nPlayers = config.playerCount,
             nRounds = config.roundCount,
             avgScore = flatScores.average(),
-            medianScore = flatScores.sorted().let { it[it.size / 2].toDouble() },
+            medianScore = sortedScores.let { if (it.isNotEmpty()) it[it.size / 2].toDouble() else 0.0 },
             minScore = flatScores.minOrNull() ?: 0,
             maxScore = flatScores.maxOrNull() ?: 0,
             scoreStdDev = stdDev(flatScores.map { it.toDouble() }),
             negativeScorePct = flatScores.count { it < 0 } * 100.0 / flatScores.size.coerceAtLeast(1),
+            scorePercentiles = scorePercentiles,
             avgGini = allGinis.average(),
             skillPremium = skillPremium,
             aggroConsGap = aggroConsGap,
@@ -127,8 +198,20 @@ object BalanceMetrics {
             farmWinRate = if (totalRounds > 0) totalFarmWins.toDouble() / totalRounds else 0.5,
             zeroMeowfiaRate = results.sumOf { it.zeroMeowfiaRounds }.toDouble() / totalRounds.coerceAtLeast(1),
             allMeowfiaRate = results.sumOf { it.allMeowfiaRounds }.toDouble() / totalRounds.coerceAtLeast(1),
+            eliminationAccuracy = eliminationAccuracy,
+            perRoundAvgScores = perRoundAvgScores,
+            roleWinRates = roleWinRates,
+            avgVotesPerElimination = avgVotesPerElimination,
+            unanimousVoteRate = unanimousVoteRate,
+            comebackFrequency = comebackFrequency,
             sampleLogs = sampleLogs
         )
+    }
+
+    private fun percentile(sorted: List<Int>, p: Double): Double {
+        if (sorted.isEmpty()) return 0.0
+        val idx = (p * (sorted.size - 1)).toInt()
+        return sorted[idx].toDouble()
     }
 
     fun gini(values: List<Double>): Double {

@@ -52,4 +52,31 @@ object SimStrategyArchetypes {
         val shuffled = random.shuffle(ALL)
         return (0 until count).map { shuffled[it % shuffled.size] }
     }
+
+    /** Assign strategies based on a distribution preset. */
+    fun assignForDistribution(
+        count: Int,
+        distribution: StrategyDistribution,
+        random: RandomProvider
+    ): List<SimStrategy> {
+        val pool = when (distribution) {
+            StrategyDistribution.BALANCED -> return assignToPlayers(count, random)
+            StrategyDistribution.ALL_SKILLED -> listOf(AGGRESSIVE_SKILLED, CONSERVATIVE_SKILLED, BALANCED_SKILLED)
+            StrategyDistribution.ALL_UNSKILLED -> listOf(AGGRESSIVE_UNSKILLED, CONSERVATIVE_UNSKILLED, BALANCED_RANDOM)
+            StrategyDistribution.ALL_AGGRESSIVE -> listOf(AGGRESSIVE_SKILLED, AGGRESSIVE_UNSKILLED)
+            StrategyDistribution.ALL_CONSERVATIVE -> listOf(CONSERVATIVE_SKILLED, CONSERVATIVE_UNSKILLED)
+            StrategyDistribution.RANDOM -> {
+                return (0 until count).map {
+                    SimStrategy(
+                        name = "Random-${it + 1}",
+                        nightSkill = random.nextFloat(),
+                        deduction = random.nextFloat(),
+                        aggression = random.nextFloat()
+                    )
+                }
+            }
+        }
+        val shuffled = random.shuffle(pool)
+        return (0 until count).map { shuffled[it % shuffled.size] }
+    }
 }

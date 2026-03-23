@@ -16,4 +16,12 @@ data class SimGameResult(
     val zeroMeowfiaRounds: Int,
     val allMeowfiaRounds: Int,
     val fullLog: String
-)
+) {
+    /** Fraction of eliminations that correctly targeted Meowfia. */
+    val eliminationAccuracy: Double get() {
+        val eliminations = roundLogs.mapNotNull { it.votingResult }
+        if (eliminations.isEmpty()) return 0.0
+        val correct = eliminations.count { it.eliminatedAlignment == Alignment.MEOWFIA }
+        return correct.toDouble() / eliminations.size
+    }
+}
