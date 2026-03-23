@@ -48,12 +48,13 @@ private const val MULBERRY_AUTO_END_MS = 5000L
 
 /** Represents an item in the day phase scrollable feed. */
 private sealed class DayFeedItem {
-    data class VisitGraphMessage(val lines: List<String>) : DayFeedItem()
-    data class MeowfiaCountMessage(val count: Int) : DayFeedItem()
-    data class FlowerMessage(val flower: RoleId) : DayFeedItem()
-    data class FlowerAction(val flower: RoleId, val used: Boolean = false) : DayFeedItem()
-    data class BotClaimItem(val claim: BotDayClaim) : DayFeedItem()
-    data class MulberryExtension(val clicked: Boolean = false) : DayFeedItem()
+    abstract val stableKey: String
+    data class VisitGraphMessage(val lines: List<String>) : DayFeedItem() { override val stableKey = "visit-graph" }
+    data class MeowfiaCountMessage(val count: Int) : DayFeedItem() { override val stableKey = "meowfia-count" }
+    data class FlowerMessage(val flower: RoleId) : DayFeedItem() { override val stableKey = "flower-msg-${flower.name}" }
+    data class FlowerAction(val flower: RoleId, val used: Boolean = false) : DayFeedItem() { override val stableKey = "flower-act-${flower.name}" }
+    data class BotClaimItem(val claim: BotDayClaim) : DayFeedItem() { override val stableKey = "bot-claim-${claim.playerId}" }
+    data class MulberryExtension(val clicked: Boolean = false) : DayFeedItem() { override val stableKey = "mulberry-ext" }
 }
 
 @Composable
@@ -294,8 +295,8 @@ fun DayTimerScreen(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(feedItems.size) { index ->
-                    when (val item = feedItems[index]) {
+                items(feedItems, key = { it.stableKey }) { item ->
+                    when (item) {
                         is DayFeedItem.VisitGraphMessage -> VisitGraphCard(item.lines)
                         is DayFeedItem.MeowfiaCountMessage -> MeowfiaCountCard(
                             count = item.count,
@@ -842,7 +843,7 @@ private fun RolePicker(
         RoleId.entries.filter { it.implemented && (it.isFarmAnimal || it.isMeowfiaAnimal) }
     }
     LazyColumn(modifier = modifier) {
-        items(implementedRoles) { role ->
+        items(implementedRoles, key = { it.name }) { role ->
             val isSelected = role == selectedRole
             Card(
                 onClick = { onSelectRole(role) },

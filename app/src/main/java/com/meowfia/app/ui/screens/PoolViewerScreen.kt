@@ -35,8 +35,9 @@ fun PoolViewerScreen(
     val tabs = listOf("Farm Animals", "Meowfia Animals", "Flowers")
     val types = listOf(CardType.FARM_ANIMAL, CardType.MEOWFIA_ANIMAL, CardType.FLOWER)
 
-    val roles = RoleId.entries
-        .filter { it.implemented && it.cardType == types[selectedTab] }
+    val roles = remember(selectedTab) {
+        RoleId.entries.filter { it.implemented && it.cardType == types[selectedTab] }
+    }
 
     Column(
         modifier = Modifier
@@ -76,7 +77,7 @@ fun PoolViewerScreen(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(roles) { role ->
+            items(roles, key = { it.name }) { role ->
                 RoleInfoCard(roleId = role)
             }
         }

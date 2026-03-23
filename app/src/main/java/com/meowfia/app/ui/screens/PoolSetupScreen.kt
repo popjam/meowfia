@@ -165,8 +165,8 @@ fun PoolSetupScreen(
             }
             1 -> {
                 // Manual selection
-                val implementedRoles = RoleId.entries.filter { it.implemented && !it.isBuffer }
-                val grouped = implementedRoles.groupBy { it.cardType }
+                val implementedRoles = remember { RoleId.entries.filter { it.implemented && !it.isBuffer } }
+                val grouped = remember(implementedRoles) { implementedRoles.groupBy { it.cardType } }
 
                 Text(
                     text = "Pool: ${selectedRoles.size} cards (2 base + ${selectedRoles.size - 2} selected)",
@@ -195,7 +195,7 @@ fun PoolSetupScreen(
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                         }
-                        items(roles) { role ->
+                        items(roles, key = { it.name }) { role ->
                             val isSelected = role in selectedRoles
                             Row(
                                 modifier = Modifier
