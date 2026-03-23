@@ -126,13 +126,114 @@ enum class RoleId(
         "Choose a player. Become a copy of their animal (keep Meowfia alignment) and perform their action.",
         implemented = false),
 
-    // === FLOWERS ===
+    // === FLOWERS — Information ===
     SUNFLOWER("Sunflower", CardType.FLOWER,
-        "Day phase: one player may publicly reveal their role to gain 2 eggs."),
-    DANDELION("Dandelion", CardType.FLOWER,
-        "Night actions resolve in seat order instead of tier order this round."),
+        "A player can scan this card and spend one egg to secretly learn if a chosen player is a certain animal or not."),
+    BOOKWORM("Bookworm", CardType.FLOWER,
+        "Farm and Meowfia receive different secret words. The eggsecuted player may guess both words to change the outcome.",
+        implemented = false),
+    PITCHER_PLANT("Pitcher Plant", CardType.FLOWER,
+        "At the start of the day, the app announces who visited whom — but not roles or what happened."),
+    CACTUS_FLOWER("Cactus Flower", CardType.FLOWER,
+        "The app reveals how many Meowfia there are. If zero, the round is skipped."),
+    LOTUS("Lotus", CardType.FLOWER,
+        "New pool cards are added face-down. Roles are assigned from the hidden cards. Revealed at round end.",
+        implemented = false),
+    CORPSE_FLOWER("Corpse Flower", CardType.FLOWER,
+        "The eggsecuted player's role and alignment are not revealed. Scoring is hidden until game end.",
+        implemented = false),
+
+    // === FLOWERS — Communication ===
+    BANKSIA("Banksia", CardType.FLOWER,
+        "Players cannot talk normally. Communication limited to whispering to neighbours. Bird sounds and meows allowed."),
+    FLANNEL_FLOWER("Flannel Flower", CardType.FLOWER,
+        "Players must keep their eyes shut during the entire day phase."),
+    MARIGOLD("Marigold", CardType.FLOWER,
+        "Day replaced by structured 30-second speeches per player, then 60-second open discussion.",
+        implemented = false),
+    TUMBLEWEED("Tumbleweed", CardType.FLOWER,
+        "All players must stand up. No assigned seats — players walk freely during discussion."),
+
+    // === FLOWERS — Day Phase ===
+    BLUEBELL("Bluebell", CardType.FLOWER,
+        "A single player may say CAW CAW to gain one egg and immediately end the day."),
+    NIGHTSHADE("Nightshade", CardType.FLOWER,
+        "Next round will have a Dusk phase before Night where players discuss night plans."),
+    MULBERRY("Mulberry", CardType.FLOWER,
+        "Day timer starts at 30 seconds. Any player may spend one egg to buy another 30 seconds."),
+    STINGING_BUSH("Stinging Bush", CardType.FLOWER,
+        "The first player to physically touch another player assassinates them. That player dies."),
+
+    // === FLOWERS — Night Phase ===
+    MOONFLOWER("Moonflower", CardType.FLOWER,
+        "Two consecutive night phases before dawn. Players act twice. Dawn reports combine both nights."),
     WOLFSBANE("Wolfsbane", CardType.FLOWER,
-        "On reveal: all Meowfia players gain 1 extra egg this round.");
+        "Meowfia assignment chance is 1 in 2 instead of 1 in 3 this round."),
+    TWINFLOWER("Twinflower", CardType.FLOWER,
+        "No limit on how many players can share the same role this round."),
+    ANGELS_TRUMPET("Angel's Trumpet", CardType.FLOWER,
+        "Egg laying and stealing between players are inverted this round.",
+        implemented = false),
+    DANDELION("Dandelion", CardType.FLOWER,
+        "Night actions resolve in seat order instead of tier order."),
+    WILDFLOWER("Wildflower", CardType.FLOWER,
+        "A random event happens during night — extra egg, role swap, Wink, etc.",
+        implemented = false),
+
+    // === FLOWERS — Nest & Egg ===
+    CHOCOLATE_LILY("Chocolate Lily", CardType.FLOWER,
+        "Egg counts hidden. Players draw eggs into hand and may lie about hand size.",
+        implemented = false),
+    FOXGLOVE("Foxglove", CardType.FLOWER,
+        "Players may openly trade egg cards during the day.",
+        implemented = false),
+
+    // === FLOWERS — Voting & Eggsecution ===
+    BOTTLEBRUSH("Bottlebrush", CardType.FLOWER,
+        "Players may throw eggs at this card. If it gets most eggs, nobody is eliminated.",
+        implemented = false),
+    TIGERLILY("Tigerlily", CardType.FLOWER,
+        "Premature voting with random deaths during the day.",
+        implemented = false),
+    SNAPDRAGON("Snapdragon", CardType.FLOWER,
+        "Eggsecution replaced by open clockwise auction.",
+        implemented = false),
+    POPPY("Poppy", CardType.FLOWER,
+        "Players shuffle hand face-down and draw randomly to throw.",
+        implemented = false),
+    VENUS_FLYTRAP("Venus Flytrap", CardType.FLOWER,
+        "Two players with most eggs are both eggsecuted.",
+        implemented = false),
+
+    // === FLOWERS — Win Condition & Scoring ===
+    WAX_FLOWER("Wax Flower", CardType.FLOWER,
+        "You win if you threw at the opposite team, regardless of who was eliminated.",
+        implemented = false),
+    CRIMSON_KUNZEA("Crimson Kunzea", CardType.FLOWER,
+        "Before speaking, hit table to double your score for this round.",
+        implemented = false),
+    OLEANDER("Oleander", CardType.FLOWER,
+        "Kept eggs worth 0. Only thrown eggs on winning side score.",
+        implemented = false),
+    THISTLE("Thistle", CardType.FLOWER,
+        "Scoreboard revealed. Last place player's eggs count double.",
+        implemented = false),
+
+    // === FLOWERS — Social & Physical ===
+    GOLDEN_WATTLE("Golden Wattle", CardType.FLOWER,
+        "Two players may shake hands to bond. Same alignment = +3 each. Different = Farm -3, Meowfia +3."),
+    DESERT_PEA("Desert Pea", CardType.FLOWER,
+        "A player may stand up, bet eggs, scan this card, and guess each player's animal for exclusive victory."),
+
+    // === FLOWERS — Round Structure ===
+    WARATAH("Waratah", CardType.FLOWER,
+        "Players draft an animal from hand as their role.",
+        implemented = false),
+    AMARANTH("Amaranth", CardType.FLOWER,
+        "After first eggsecution, play a second Night-Dawn-Day-Vote cycle.",
+        implemented = false),
+    BIRD_OF_PARADISE("Bird of Paradise", CardType.FLOWER,
+        "Adds an extra bot player to the game this round.");
 
     val isBuffer: Boolean get() = this == PIGEON || this == HOUSE_CAT
     val isFlower: Boolean get() = cardType == CardType.FLOWER

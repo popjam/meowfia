@@ -23,11 +23,13 @@ class RoleAssigner(private val random: RandomProvider) {
         playerCount: Int,
         pool: List<PoolCard>,
         forcedAlignments: Map<Int, Alignment>? = null,
-        forcedRoles: Map<Int, RoleId>? = null
+        forcedRoles: Map<Int, RoleId>? = null,
+        activeFlowers: List<RoleId> = emptyList()
     ): List<PlayerAssignment> {
         // Step 1: Roll alignments
+        val meowfiaChance = if (RoleId.WOLFSBANE in activeFlowers) 1f / 2f else 1f / 3f
         val alignments = (0 until playerCount).map { playerId ->
-            forcedAlignments?.get(playerId) ?: if (random.nextFloat() < 1f / 3f) {
+            forcedAlignments?.get(playerId) ?: if (random.nextFloat() < meowfiaChance) {
                 Alignment.MEOWFIA
             } else {
                 Alignment.FARM
@@ -59,9 +61,18 @@ class RoleAssigner(private val random: RandomProvider) {
             }
 
             val alignment = alignments[playerId]
+            val twinflowerActive = RoleId.TWINFLOWER in activeFlowers
             val role = when (alignment) {
-                Alignment.FARM -> farmRoles.removeFirstOrNull() ?: RoleId.PIGEON
-                Alignment.MEOWFIA -> meowfiaRoles.removeFirstOrNull() ?: RoleId.HOUSE_CAT
+                Alignment.FARM -> if (twinflowerActive && farmRoles.isNotEmpty()) {
+                    farmRoles[random.nextInt(farmRoles.size)]
+                } else {
+                    farmRoles.removeFirstOrNull() ?: RoleId.PIGEON
+                }
+                Alignment.MEOWFIA -> if (twinflowerActive && meowfiaRoles.isNotEmpty()) {
+                    meowfiaRoles[random.nextInt(meowfiaRoles.size)]
+                } else {
+                    meowfiaRoles.removeFirstOrNull() ?: RoleId.HOUSE_CAT
+                }
             }
             assignments.add(PlayerAssignment(playerId, alignment, role))
         }

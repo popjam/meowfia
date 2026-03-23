@@ -16,8 +16,28 @@ object FlowerRegistry {
 
     fun initialize() {
         handlers.clear()
+        // Information
         register(SunflowerHandler())
-        register(DandelionHandler())
+        register(PitcherPlantHandler())
+        register(CactusFlowerHandler())
+        // Communication
+        register(BanksiaHandler())
+        register(FlannelFlowerHandler())
+        register(TumbleweedHandler())
+        // Day Phase
+        register(BluebellHandler())
+        register(NightshadeHandler())
+        register(MulberryHandler())
+        register(StingingBushHandler())
+        // Night Phase
+        register(MoonflowerHandler())
         register(WolfsbaneHandler())
+        register(TwinflowerHandler())
+        register(DandelionHandler())
+        // Social & Physical
+        register(GoldenWattleHandler())
+        register(DesertPeaHandler())
+        // Round Structure
+        register(BirdOfParadiseHandler())
     }
 }

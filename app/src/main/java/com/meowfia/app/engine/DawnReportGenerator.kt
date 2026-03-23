@@ -39,10 +39,7 @@ class DawnReportGenerator {
     }
 
     private fun buildFlowerInfo(activeFlowers: List<RoleId>): List<String> {
-        val info = mutableListOf<String>()
-        if (RoleId.SUNFLOWER in activeFlowers) {
-            info.add("Sunflower active: one player may reveal their role during day to gain 2 eggs.")
-        }
-        return info
+        // Flower effects are now shown during the day phase, not in dawn reports
+        return emptyList()
     }
 }

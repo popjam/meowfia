@@ -51,6 +51,8 @@ fun GameNavGraph(navController: NavHostController) {
     var roundNumber by remember { mutableIntStateOf(1) }
     var cawCawCount by remember { mutableIntStateOf(0) }
     var botClaims by remember { mutableStateOf(emptyList<BotDayClaim>()) }
+    var nightPhaseCount by remember { mutableIntStateOf(0) }
+    var firstNightDeltas by remember { mutableStateOf<Map<Int, Int>>(emptyMap()) }
 
     NavHost(
         navController = navController,
@@ -88,6 +90,12 @@ fun GameNavGraph(navController: NavHostController) {
                         dealerSeat = 0
                     )
                     assignments = GameSession.coordinator.assignRoles()
+
+                    // Bird of Paradise: add an extra bot player
+                    if (RoleId.BIRD_OF_PARADISE in GameSession.coordinator.state.activeFlowers) {
+                        val botPlayer = GameSession.coordinator.addBotPlayer("Paradise Bot")
+                        GameSession.profileImages[botPlayer.id] = generateColorProfile(botPlayer.id)
+                    }
 
                     // Flag bot players and assign color profiles for bots
                     flagBotPlayers(humanCount)
@@ -134,6 +142,12 @@ fun GameNavGraph(navController: NavHostController) {
                         forcedRoles = forcedRoles
                     )
 
+                    // Bird of Paradise: add an extra bot player
+                    if (RoleId.BIRD_OF_PARADISE in GameSession.coordinator.state.activeFlowers) {
+                        val botPlayer = GameSession.coordinator.addBotPlayer("Paradise Bot")
+                        GameSession.profileImages[botPlayer.id] = generateColorProfile(botPlayer.id)
+                    }
+
                     // Re-flag bot players
                     flagBotPlayers(humanCount)
 
@@ -153,9 +167,34 @@ fun GameNavGraph(navController: NavHostController) {
                     currentPlayerIndex++
                 },
                 onAllDone = {
-                    GameSession.coordinator.resolveNight()
-                    currentPlayerIndex = 0
-                    navController.navigate(MeowfiaRoute.DawnPhase.route)
+                    val activeFlowers = GameSession.coordinator.state.activeFlowers
+                    if (RoleId.MOONFLOWER in activeFlowers && nightPhaseCount == 0) {
+                        // First night of Moonflower double-night
+                        GameSession.coordinator.resolveNight()
+                        // Save first night egg deltas
+                        firstNightDeltas = GameSession.coordinator.state.players.associate { p ->
+                            p.id to (GameSession.coordinator.state.nightResults[p.id]
+                                ?.eggDeltas?.get(p.id) ?: 0)
+                        }
+                        // Clear actions for second night pass
+                        GameSession.coordinator.clearNightActions()
+                        nightPhaseCount = 1
+                        currentPlayerIndex = 0
+                        navController.navigate(MeowfiaRoute.NightPhase.route) {
+                            popUpTo(MeowfiaRoute.NightPhase.route) { inclusive = true }
+                        }
+                    } else {
+                        // Normal night or second Moonflower night
+                        GameSession.coordinator.resolveNight()
+                        if (nightPhaseCount == 1) {
+                            // Patch second night's context with first night's egg deltas
+                            GameSession.coordinator.addExtraEggDeltas(firstNightDeltas)
+                            firstNightDeltas = emptyMap()
+                        }
+                        nightPhaseCount = 0
+                        currentPlayerIndex = 0
+                        navController.navigate(MeowfiaRoute.DawnPhase.route)
+                    }
                 }
             )
         }
@@ -199,13 +238,42 @@ fun GameNavGraph(navController: NavHostController) {
                 roundNumber = roundNumber,
                 cawCawCount = cawCawCount,
                 activeFlowers = GameSession.coordinator.state.activeFlowers,
+                players = GameSession.coordinator.state.players,
                 botClaims = botClaims,
+                visitGraph = GameSession.coordinator.state.visitGraph,
                 onCawCaw = {
                     GameSession.coordinator.recordCawCaw()
                     cawCawCount = GameSession.coordinator.state.cawCawCount
                 },
                 onTimeUp = {
                     navController.navigate(MeowfiaRoute.VotingResult.route)
+                },
+                onSkipRound = {
+                    // Cactus Flower: skip entire day+vote when zero Meowfia
+                    roundNumber++
+                    currentPlayerIndex = 0
+                    cawCawCount = 0
+
+                    val pool = selectedRoles.map { PoolCard(it) }
+                    GameSession.coordinator.startNewRound(
+                        roundNumber = roundNumber,
+                        poolCards = pool,
+                        playerNames = playerNames,
+                        dealerSeat = (roundNumber - 1) % playerNames.size
+                    )
+                    assignments = GameSession.coordinator.assignRoles()
+
+                    if (RoleId.BIRD_OF_PARADISE in GameSession.coordinator.state.activeFlowers) {
+                        val botPlayer = GameSession.coordinator.addBotPlayer("Paradise Bot")
+                        GameSession.profileImages[botPlayer.id] = generateColorProfile(botPlayer.id)
+                    }
+
+                    val humanCount = playerCount - botCount
+                    flagBotPlayers(humanCount)
+
+                    navController.navigate(MeowfiaRoute.NightPhase.route) {
+                        popUpTo(MeowfiaRoute.Start.route) { inclusive = false }
+                    }
                 }
             )
         }
@@ -258,6 +326,12 @@ fun GameNavGraph(navController: NavHostController) {
                         dealerSeat = (roundNumber - 1) % placeholderNames.size
                     )
                     assignments = GameSession.coordinator.assignRoles()
+
+                    // Bird of Paradise: add an extra bot player
+                    if (RoleId.BIRD_OF_PARADISE in GameSession.coordinator.state.activeFlowers) {
+                        val botPlayer = GameSession.coordinator.addBotPlayer("Paradise Bot")
+                        GameSession.profileImages[botPlayer.id] = generateColorProfile(botPlayer.id)
+                    }
 
                     // Re-flag bot players
                     val humanCount = playerCount - botCount

@@ -12,9 +12,9 @@ These flowers modify what players know or learn.
 
 **Bookworm** — Farm players will be given an identical secret word at night, while Meowfia players will be given a different identical word. At the end of the day, the eggsecuted player may guess the word of both teams from a list of options. If they guess a team's word correctly, that team wins instead.
 
-**Pitcher Plant** — After the night phase, the app announces who visited whom — but not their roles or what happened during the visit. The full visit graph is public knowledge before the day phase begins.
+**Pitcher Plant** — At the start of the day phase, the app announces who visited whom — but not their roles or what happened during the visit. The full visit graph is public knowledge before the day phase begins.
 
-**Cactus Flower** — Before the day phase, the app reveals exactly how many Meowfia players there are this round (but not who they are). If there are zero Meowfia, this is announced and the round is immediately skipped — no discussion, no vote, no eggs lost. Everyone scores +1 per egg in hand.
+**Cactus Flower** — At the start of the day phase, the app reveals exactly how many Meowfia players there are this round (but not who they are). If there are zero Meowfia, this is announced and the round is immediately skipped — no discussion, no vote, no eggs lost. Everyone scores +1 per egg in hand.
 
 **Lotus** — During the Pool Phase, the 3 new cards are added to the pool face-down instead of face-up. Players do not know what roles or flowers were added this round. The app scans them normally and assigns roles from the full pool (including the hidden cards). At the end of the round, after scoring, the hidden cards are revealed.
 

@@ -76,7 +76,8 @@ class GameCoordinator(
             playerCount = state.players.size,
             pool = state.pool,
             forcedAlignments = forcedAlignments,
-            forcedRoles = forcedRoles
+            forcedRoles = forcedRoles,
+            activeFlowers = state.activeFlowers
         )
 
         val updatedPlayers = state.players.map { player ->
@@ -248,8 +249,6 @@ class GameCoordinator(
         return state
     }
 
-    // --- Queries ---
-
     /** If eliminated is Meowfia → Farm wins. If Farm → Meowfia wins. */
     fun getWinningTeam(): Alignment? {
         val eliminatedId = state.eliminatedPlayerId ?: return null
@@ -259,6 +258,56 @@ class GameCoordinator(
             Alignment.FARM -> Alignment.MEOWFIA
         }
     }
+
+    // --- Moonflower support ---
+
+    /**
+     * Clears night actions and visit graph so a second night phase can collect
+     * fresh actions from all players.
+     */
+    fun clearNightActions() {
+        _state = state.copy(
+            nightActions = emptyMap(),
+            visitGraph = emptyMap()
+        )
+    }
+
+    /**
+     * Patches the current [resolvedContext] with extra egg deltas (e.g. from a
+     * prior Moonflower night). Must be called after [resolveNight] and before
+     * [getDawnReport].
+     */
+    fun addExtraEggDeltas(deltas: Map<Int, Int>) {
+        val ctx = resolvedContext ?: return
+        for ((playerId, delta) in deltas) {
+            if (delta > 0) ctx.addEggs(playerId, delta)
+            else if (delta < 0) ctx.removeEggs(playerId, -delta)
+        }
+    }
+
+    // --- Bird of Paradise support ---
+
+    /**
+     * Adds an extra bot player mid-round with a randomly chosen alignment and
+     * the corresponding buffer role (Pigeon for Farm, House Cat for Meowfia).
+     */
+    fun addBotPlayer(name: String): Player {
+        val newId = state.players.size
+        val alignment = if (random.nextFloat() < 1f / 3f) Alignment.MEOWFIA else Alignment.FARM
+        val role = if (alignment == Alignment.MEOWFIA) RoleId.HOUSE_CAT else RoleId.PIGEON
+        val player = Player(
+            id = newId,
+            name = name,
+            alignment = alignment,
+            roleId = role,
+            originalRoleId = role,
+            isBot = true
+        )
+        _state = state.copy(players = state.players + player)
+        return player
+    }
+
+    // --- Queries ---
 
     fun getPlayerCount(): Int = state.players.size
     fun getCurrentPhase(): GamePhase = state.phase

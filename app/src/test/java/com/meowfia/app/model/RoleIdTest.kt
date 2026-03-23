@@ -18,7 +18,7 @@ class RoleIdTest {
     @Test
     fun correct_number_of_implemented_flowers() {
         val flowers = RoleId.entries.filter { it.implemented && it.isFlower }
-        assertThat(flowers).hasSize(3)
+        assertThat(flowers).hasSize(17)
     }
 
     @Test
