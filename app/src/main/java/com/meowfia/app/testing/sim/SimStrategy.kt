@@ -1,5 +1,6 @@
 package com.meowfia.app.testing.sim
 
+import com.meowfia.app.bot.BotStrategy
 import com.meowfia.app.data.model.Alignment
 import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.util.RandomProvider
@@ -7,7 +8,10 @@ import com.meowfia.app.util.RandomProvider
 /**
  * Controls a simulated player's decisions.
  *
- * @param nightSkill  0.0–1.0 — How well this player uses night info.
+ * Night targeting is handled by [com.meowfia.app.bot.BotBrain] via [toBotStrategy].
+ * This class handles voting and card-throwing (sim-only concerns).
+ *
+ * @param nightSkill  0.0–1.0 — How well this player identifies correct targets at night.
  * @param deduction   0.0–1.0 — Probability of correctly identifying Meowfia during voting.
  * @param aggression  0.0–1.0 — How many cards thrown per vote.
  */
@@ -17,44 +21,8 @@ data class SimStrategy(
     val deduction: Float,
     val aggression: Float
 ) {
-    /** Choose who to visit during night phase. Returns null for auto-target roles. */
-    fun chooseNightTarget(
-        actor: SimPlayer,
-        allPlayers: List<SimPlayer>,
-        random: RandomProvider
-    ): Int? {
-        val others = allPlayers.filter { it.id != actor.id }
-        if (others.isEmpty()) return null
-
-        return when (actor.roleId) {
-            RoleId.HAWK -> {
-                // Skilled hawk more likely to pick actual Meowfia
-                if (random.nextFloat() < nightSkill) {
-                    val meowfia = others.filter { it.alignment == Alignment.MEOWFIA }
-                    if (meowfia.isNotEmpty()) meowfia[random.nextInt(meowfia.size)].id
-                    else others[random.nextInt(others.size)].id
-                } else {
-                    others[random.nextInt(others.size)].id
-                }
-            }
-            RoleId.PIGEON, RoleId.CHICKEN -> {
-                // Skilled pigeon/chicken targets Farm allies
-                if (random.nextFloat() < nightSkill) {
-                    val allies = others.filter { it.alignment == Alignment.FARM }
-                    if (allies.isNotEmpty()) allies[random.nextInt(allies.size)].id
-                    else others[random.nextInt(others.size)].id
-                } else {
-                    others[random.nextInt(others.size)].id
-                }
-            }
-            RoleId.HOUSE_CAT -> {
-                // Skilled cat targets players likely to have eggs
-                others[random.nextInt(others.size)].id
-            }
-            RoleId.TURKEY, RoleId.MOSQUITO, RoleId.TIT, RoleId.BLACK_SWAN -> null
-            else -> others[random.nextInt(others.size)].id
-        }
-    }
+    /** Convert to a [BotStrategy] for use with BotBrain night targeting. */
+    fun toBotStrategy(): BotStrategy = BotStrategy(name = name, nightSkill = nightSkill)
 
     /** Choose who to throw eggs at during voting. */
     fun chooseVoteTarget(

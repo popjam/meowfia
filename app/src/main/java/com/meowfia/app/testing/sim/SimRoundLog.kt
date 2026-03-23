@@ -17,5 +17,6 @@ data class SimRoundLog(
     var scoringEvents: List<SimVotingResolver.ScoringEvent> = emptyList(),
     var postScores: List<Int> = emptyList(),
     var visitGraph: Map<Int, Int> = emptyMap(),
-    var confusedPlayers: Int = 0
+    var confusedPlayers: Int = 0,
+    var solvability: RoundSolver.SolvabilityResult? = null
 )

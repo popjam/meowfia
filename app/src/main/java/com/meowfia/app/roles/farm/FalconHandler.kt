@@ -6,6 +6,7 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.engine.ResolutionContext
 import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.roles.RoleHandler
+import com.meowfia.app.roles.TargetPreference
 
 /** Lay an egg in the nest of whoever your target visited. */
 class FalconHandler : RoleHandler {
@@ -34,4 +35,6 @@ class FalconHandler : RoleHandler {
             context.log("${actor.name} (Falcon) visits ${target.name} — they visited nobody. No egg.")
         }
     }
+
+    override fun getTargetPreference(actor: Player) = TargetPreference.ACTIVE_VISITORS
 }

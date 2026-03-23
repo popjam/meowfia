@@ -6,6 +6,7 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.engine.ResolutionContext
 import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.roles.RoleHandler
+import com.meowfia.app.roles.TargetPreference
 
 /** Visit a player. Learn their role and who they visited. */
 class HouseCatHandler : RoleHandler {
@@ -27,11 +28,14 @@ class HouseCatHandler : RoleHandler {
         if (target == null) return
 
         // Intel only — no stealing in v6
+        val targetRole = context.getCurrentRole(target.id)
         val visitTarget = context.getVisitTargetOf(target.id)
         val visitInfo = if (visitTarget != null) "visited ${visitTarget.name}" else "visited nobody"
-        context.addInfo(actor.id, "${target.name} is a ${target.roleId.displayName} and $visitInfo.")
+        context.addInfo(actor.id, "${target.name} is a ${targetRole.displayName} and $visitInfo.")
         context.log("${actor.name} (House Cat) visits ${target.name} — learns role and visit target.")
     }
+
+    override fun getTargetPreference(actor: Player) = TargetPreference.OPPOSITE_TEAM
 
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
         return context.getInfoFor(player.id)

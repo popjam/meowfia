@@ -7,6 +7,7 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.engine.ResolutionContext
 import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.roles.RoleHandler
+import com.meowfia.app.roles.TargetPreference
 
 /** Investigate a player — if Meowfia, gain an egg. */
 class HawkHandler : RoleHandler {
@@ -27,13 +28,17 @@ class HawkHandler : RoleHandler {
         }
         if (target == null) return
 
-        if (target.alignment == Alignment.MEOWFIA) {
+        val targetAlignment = context.getCurrentAlignment(target.id)
+        if (targetAlignment == Alignment.MEOWFIA) {
             context.addEggs(actor.id, 1)
             context.log("${actor.name} (Hawk) investigates ${target.name} — MEOWFIA. Egg gained.")
         } else {
             context.log("${actor.name} (Hawk) investigates ${target.name} — FARM. No egg.")
         }
     }
+
+    override fun getTargetPreference(actor: Player) = TargetPreference.OPPOSITE_TEAM
+    override fun getSelfEggRange() = 0..1
 
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
         return emptyList()

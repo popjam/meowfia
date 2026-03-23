@@ -109,21 +109,21 @@ object PostRoundAnalyzer {
         }
 
         // Role changes
-        val roleSwaps = context.getRoleSwaps()
-        val roleChanges = roleSwaps.mapNotNull { (playerId, newRole) ->
+        val finalRoles = context.computeFinalRoles()
+        val roleChanges = finalRoles.mapNotNull { (playerId, newRole) ->
             val player = players.find { it.id == playerId } ?: return@mapNotNull null
             if (player.originalRoleId == newRole) return@mapNotNull null
             RoleChangeEntry(
                 playerName = player.name,
                 fromRole = player.originalRoleId.displayName,
                 toRole = newRole.displayName,
-                cause = inferRoleChangeCause(playerId, roleSwaps, gameState)
+                cause = inferRoleChangeCause(playerId, gameState)
             )
         }
 
         // Alignment changes
-        val alignmentSwaps = context.getAlignmentSwaps()
-        val alignmentChanges = alignmentSwaps.mapNotNull { (playerId, newAlignment) ->
+        val finalAlignments = context.computeFinalAlignments()
+        val alignmentChanges = finalAlignments.mapNotNull { (playerId, newAlignment) ->
             val player = players.find { it.id == playerId } ?: return@mapNotNull null
             // Find original alignment from assignment (before sheep swap)
             val originalAlignment = if (newAlignment != player.alignment) player.alignment
@@ -328,7 +328,6 @@ object PostRoundAnalyzer {
 
     private fun inferRoleChangeCause(
         playerId: Int,
-        roleSwaps: Map<Int, RoleId>,
         gameState: GameState
     ): String {
         val player = gameState.players.find { it.id == playerId } ?: return "Unknown"

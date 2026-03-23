@@ -24,4 +24,32 @@ data class SimGameResult(
         val correct = eliminations.count { it.eliminatedAlignment == Alignment.MEOWFIA }
         return correct.toDouble() / eliminations.size
     }
+
+    /** Breakdown of round solvability across all rounds. */
+    val solvabilityStats: Map<RoundSolver.Solvability, Int> get() {
+        return roundLogs.mapNotNull { it.solvability?.solvability }
+            .groupingBy { it }
+            .eachCount()
+    }
+
+    /** Fraction of rounds where Meowfia could be identified from public info. */
+    val solvedRate: Double get() {
+        val results = roundLogs.mapNotNull { it.solvability }
+        if (results.isEmpty()) return 0.0
+        return results.count { it.solvability == RoundSolver.Solvability.SOLVED }.toDouble() / results.size
+    }
+
+    /** Fraction of rounds where suspects could be narrowed but not fully solved. */
+    val narrowedRate: Double get() {
+        val results = roundLogs.mapNotNull { it.solvability }
+        if (results.isEmpty()) return 0.0
+        return results.count { it.solvability == RoundSolver.Solvability.NARROWED }.toDouble() / results.size
+    }
+
+    /** Fraction of rounds that were effectively a coin flip. */
+    val coinFlipRate: Double get() {
+        val results = roundLogs.mapNotNull { it.solvability }
+        if (results.isEmpty()) return 0.0
+        return results.count { it.solvability == RoundSolver.Solvability.COIN_FLIP }.toDouble() / results.size
+    }
 }
