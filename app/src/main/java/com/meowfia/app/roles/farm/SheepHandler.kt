@@ -30,8 +30,9 @@ class SheepHandler : RoleHandler {
             return
         }
 
-        context.swapAlignment(actor.id, target.alignment)
-        context.log("${actor.name} (Sheep) visited ${target.name} — alignment now ${target.alignment.displayName}.")
+        val targetAlignment = context.getCurrentAlignment(target.id)
+        context.setAlignment(actor.id, targetAlignment)
+        context.log("${actor.name} (Sheep) visited ${target.name} — alignment now ${targetAlignment.displayName}.")
     }
 
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {

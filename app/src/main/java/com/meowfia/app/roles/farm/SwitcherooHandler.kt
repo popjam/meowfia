@@ -36,9 +36,12 @@ class SwitcherooHandler : RoleHandler {
             return
         }
 
-        context.swapRoles(target.id, visitTarget.roleId)
-        context.swapRoles(visitTarget.id, target.roleId)
-        context.log("${actor.name} (Switcheroo) caused ${target.name} and ${visitTarget.name} to swap roles. ${target.name} → ${visitTarget.roleId.displayName}, ${visitTarget.name} → ${target.roleId.displayName}.")
+        val targetRole = context.getCurrentRole(target.id)
+        val visitTargetRole = context.getCurrentRole(visitTarget.id)
+
+        context.swapRoles(target.id, visitTarget.id)
+
+        context.log("${actor.name} (Switcheroo) caused ${target.name} and ${visitTarget.name} to swap roles. ${target.name} → ${visitTargetRole.displayName}, ${visitTarget.name} → ${targetRole.displayName}.")
     }
 
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
