@@ -38,6 +38,7 @@ fun RoundSummaryScreen(
     dawnReports: Map<Int, DawnReport>,
     eliminatedPlayerId: Int?,
     winningTeam: Alignment?,
+    onViewAnalysis: () -> Unit = {},
     onNextRound: () -> Unit,
     onEndGame: () -> Unit
 ) {
@@ -111,6 +112,8 @@ fun RoundSummaryScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+        MeowfiaSecondaryButton(text = "View Detailed Analysis", onClick = onViewAnalysis)
+        Spacer(modifier = Modifier.height(8.dp))
         MeowfiaPrimaryButton(text = "Next Round", onClick = onNextRound)
         Spacer(modifier = Modifier.height(8.dp))
         MeowfiaSecondaryButton(text = "End Game", onClick = onEndGame)

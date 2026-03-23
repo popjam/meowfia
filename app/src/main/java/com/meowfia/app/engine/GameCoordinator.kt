@@ -8,6 +8,7 @@ import com.meowfia.app.data.model.NightAction
 import com.meowfia.app.data.model.Player
 import com.meowfia.app.data.model.PlayerAssignment
 import com.meowfia.app.data.model.PoolCard
+import com.meowfia.app.data.model.PostRoundAnalysis
 import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.data.registry.RoleRegistry
 import com.meowfia.app.flowers.FlowerRegistry
@@ -305,6 +306,17 @@ class GameCoordinator(
         )
         _state = state.copy(players = state.players + player)
         return player
+    }
+
+    // --- Post-Round Analysis ---
+
+    /**
+     * Builds a detailed [PostRoundAnalysis] walkthrough of the completed round.
+     * Must be called after [resolveNight] (requires a resolved context).
+     */
+    fun getPostRoundAnalysis(): PostRoundAnalysis {
+        val ctx = resolvedContext ?: error("Night must be resolved before generating analysis")
+        return PostRoundAnalyzer.analyze(state, ctx, getWinningTeam())
     }
 
     // --- Queries ---
