@@ -15,7 +15,10 @@ data class SimConfig(
     val forcedVisits: Map<Int, Int>? = null,
     val includeFlowers: Boolean = false,
     val activeFlowerOverride: List<RoleId>? = null,
-    val verbosity: Verbosity = Verbosity.FULL
+    val verbosity: Verbosity = Verbosity.FULL,
+    val strategyDistribution: StrategyDistribution = StrategyDistribution.BALANCED,
+    val meowfiaChance: Float? = null,
+    val allowedRoles: Set<RoleId>? = null
 ) {
     companion object {
         val DEFAULT_NAMES = listOf(
@@ -36,4 +39,13 @@ enum class Verbosity {
     SUMMARY,
     FULL,
     DEBUG
+}
+
+enum class StrategyDistribution(val displayName: String) {
+    BALANCED("Balanced Mix"),
+    ALL_SKILLED("All Skilled"),
+    ALL_UNSKILLED("All Unskilled"),
+    ALL_AGGRESSIVE("All Aggressive"),
+    ALL_CONSERVATIVE("All Conservative"),
+    RANDOM("Random")
 }
