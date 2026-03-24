@@ -187,6 +187,33 @@ object BalanceMetrics {
             narrowedResults.map { it.suspects.size.toDouble() }.average()
         } else 0.0
 
+        // Solvability percentages from all rounds
+        val solvabilityPercentages = allSolvability
+            .filter { it.totalCandidates > 0 }
+            .map { ((1.0 - it.consistentWorlds.toDouble() / it.totalCandidates) * 100).toInt().coerceIn(0, 100) }
+        val avgSolvabilityPercent = if (solvabilityPercentages.isNotEmpty()) {
+            solvabilityPercentages.average()
+        } else 0.0
+
+        // Meowfia count distribution and win rates
+        val meowfiaCountBuckets = mutableMapOf<Int, Int>()
+        val meowfiaCountFarmWins = mutableMapOf<Int, Int>()
+        val meowfiaCountTotal = mutableMapOf<Int, Int>()
+        for (result in results) {
+            for (log in result.roundLogs) {
+                val mc = log.meowfiaCount
+                meowfiaCountBuckets[mc] = (meowfiaCountBuckets[mc] ?: 0) + 1
+                meowfiaCountTotal[mc] = (meowfiaCountTotal[mc] ?: 0) + 1
+                val vr = log.votingResult
+                if (vr != null && vr.winningTeam == Alignment.FARM) {
+                    meowfiaCountFarmWins[mc] = (meowfiaCountFarmWins[mc] ?: 0) + 1
+                }
+            }
+        }
+        val meowfiaCountWinRates = meowfiaCountTotal.mapValues { (mc, total) ->
+            (meowfiaCountFarmWins[mc] ?: 0).toDouble() / total
+        }
+
         return BatchStatistics(
             nGames = results.size,
             nPlayers = config.playerCount,
@@ -222,6 +249,10 @@ object BalanceMetrics {
             narrowedRate = narrowedRate,
             coinFlipRate = coinFlipRate,
             avgSuspectsWhenNarrowed = avgSuspectsWhenNarrowed,
+            solvabilityPercentages = solvabilityPercentages,
+            avgSolvabilityPercent = avgSolvabilityPercent,
+            meowfiaCountDistribution = meowfiaCountBuckets,
+            meowfiaCountWinRates = meowfiaCountWinRates,
             sampleLogs = sampleLogs
         )
     }

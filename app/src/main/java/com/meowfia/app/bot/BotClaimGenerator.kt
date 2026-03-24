@@ -30,13 +30,15 @@ object BotClaimGenerator {
         dawnReport: DawnReport,
         visitGraph: Map<Int, Int?>
     ): BotDayClaim {
+        // Never claim a Meowfia role — if swapped into one, claim Pigeon instead
+        val claimedRole = if (bot.roleId.isMeowfiaAnimal) RoleId.PIGEON else bot.roleId
         val targetId = visitGraph[bot.id]
-        val targetName = getTargetClaimText(bot.roleId, targetId, allPlayers)
+        val targetName = getTargetClaimText(claimedRole, targetId, allPlayers)
 
         return BotDayClaim(
             playerId = bot.id,
             botName = bot.name,
-            claimedRole = bot.roleId,
+            claimedRole = claimedRole,
             claimedTargetName = targetName,
             claimedEggDelta = dawnReport.reportedEggDelta,
             isLying = false

@@ -81,7 +81,7 @@ fun PostRoundAnalysisScreen(
             // --- Section 2: Active Flowers ---
             if (analysis.activeFlowers.isNotEmpty()) {
                 item { SectionHeader("Active Flowers") }
-                items(analysis.activeFlowers) { flower ->
+                items(analysis.activeFlowers, key = { "flower_${it.name}" }) { flower ->
                     InfoCard {
                         Text(
                             text = flower.name,
@@ -100,7 +100,7 @@ fun PostRoundAnalysisScreen(
 
             // --- Section 3: Assignments ---
             item { SectionHeader("Player Assignments") }
-            items(analysis.playerAssignments) { assignment ->
+            items(analysis.playerAssignments, key = { "assign_${it.playerId}" }) { assignment ->
                 val alignmentColor = if (assignment.alignment == com.meowfia.app.data.model.Alignment.FARM)
                     MeowfiaColors.Farm else MeowfiaColors.Meowfia
                 val botTag = if (assignment.isBot) " [BOT]" else ""
@@ -184,7 +184,7 @@ fun PostRoundAnalysisScreen(
             // --- Section 7: Egg Summary ---
             if (analysis.eggSummary.isNotEmpty()) {
                 item { SectionHeader("Egg Changes") }
-                items(analysis.eggSummary) { entry ->
+                items(analysis.eggSummary, key = { "egg_${it.playerId}" }) { entry ->
                     val deltaColor = when {
                         entry.delta > 0 -> MeowfiaColors.Farm
                         entry.delta < 0 -> MeowfiaColors.Secondary
@@ -221,7 +221,7 @@ fun PostRoundAnalysisScreen(
             // --- Section 8: Role Changes ---
             if (analysis.roleChanges.isNotEmpty()) {
                 item { SectionHeader("Role Changes") }
-                items(analysis.roleChanges) { change ->
+                items(analysis.roleChanges, key = { "role_${it.playerId}" }) { change ->
                     InfoCard {
                         Text(
                             text = change.playerName,
@@ -247,7 +247,7 @@ fun PostRoundAnalysisScreen(
             // --- Section 9: Alignment Changes ---
             if (analysis.alignmentChanges.isNotEmpty()) {
                 item { SectionHeader("Alignment Changes") }
-                items(analysis.alignmentChanges) { change ->
+                items(analysis.alignmentChanges, key = { "align_${it.playerId}" }) { change ->
                     val fromColor = if (change.fromAlignment == com.meowfia.app.data.model.Alignment.FARM)
                         MeowfiaColors.Farm else MeowfiaColors.Meowfia
                     val toColor = if (change.toAlignment == com.meowfia.app.data.model.Alignment.FARM)
@@ -291,7 +291,7 @@ fun PostRoundAnalysisScreen(
             // --- Section 10: Status Effects ---
             if (analysis.statusEffects.isNotEmpty()) {
                 item { SectionHeader("Status Effects Applied") }
-                items(analysis.statusEffects) { entry ->
+                items(analysis.statusEffects, key = { "status_${it.playerId}_${it.effect}" }) { entry ->
                     val effectColor = when (entry.effect) {
                         StatusEffect.CONFUSED -> MeowfiaColors.Confused
                         StatusEffect.HUGGED -> MeowfiaColors.Hugged
@@ -372,7 +372,263 @@ fun PostRoundAnalysisScreen(
                 }
             }
 
-            // --- Section 12: Narrative Log ---
+            // --- Section 12: Solvability ---
+            if (analysis.solvability != null) {
+                val solv = analysis.solvability
+                val verdictColor = when (solv.verdict) {
+                    "SOLVED" -> MeowfiaColors.Farm
+                    "NARROWED" -> MeowfiaColors.Primary
+                    else -> MeowfiaColors.TextSecondary
+                }
+
+                item { SectionHeader("Could You Have Figured It Out?") }
+
+                // Verdict card
+                item {
+                    InfoCard {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            Text(
+                                text = solv.verdict,
+                                color = verdictColor,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${solv.solvabilityPercent}%",
+                                color = verdictColor,
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${solv.consistentWorlds} of ${solv.totalCandidates} scenarios remain consistent",
+                            color = MeowfiaColors.TextSecondary,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = solv.verdictExplanation,
+                            color = MeowfiaColors.TextPrimary,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+
+                // Player claims
+                if (solv.playerClaims.isNotEmpty()) {
+                    item {
+                        InfoCard {
+                            Text(
+                                text = "What everyone claimed:",
+                                color = MeowfiaColors.Primary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            for (claim in solv.playerClaims) {
+                                val targetText = claim.claimedTarget?.let { "visited $it" } ?: "stayed home"
+                                val deltaText = when {
+                                    claim.claimedEggDelta > 0 -> "+${claim.claimedEggDelta} eggs"
+                                    claim.claimedEggDelta < 0 -> "${claim.claimedEggDelta} eggs"
+                                    else -> "0 eggs"
+                                }
+                                val truthColor = if (claim.wasLying) MeowfiaColors.Secondary else MeowfiaColors.Farm
+                                val truthTag = if (claim.wasLying) " (LIE)" else " (TRUTH)"
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 3.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = buildAnnotatedString {
+                                                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                                                    append(claim.playerName)
+                                                }
+                                                append(": \"I'm a ${claim.claimedRole}, $targetText, $deltaText\"")
+                                            },
+                                            color = MeowfiaColors.TextPrimary,
+                                            fontSize = 12.sp
+                                        )
+                                        Text(
+                                            text = "Actually: ${claim.actualAlignment} ${claim.actualRole}$truthTag",
+                                            color = truthColor,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Suspects & cleared
+                if (solv.cleared.isNotEmpty() || solv.suspects.isNotEmpty()) {
+                    item {
+                        InfoCard {
+                            if (solv.cleared.isNotEmpty()) {
+                                Text(
+                                    text = "Definitely innocent:",
+                                    color = MeowfiaColors.Farm,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = solv.cleared.joinToString(", "),
+                                    color = MeowfiaColors.TextPrimary,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Their claims are always consistent — no possible world has them as Meowfia.",
+                                    color = MeowfiaColors.TextSecondary,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            if (solv.cleared.isNotEmpty() && solv.suspects.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                            }
+                            if (solv.suspects.isNotEmpty()) {
+                                Text(
+                                    text = "Could be Meowfia:",
+                                    color = MeowfiaColors.Secondary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = solv.suspects.joinToString(", "),
+                                    color = MeowfiaColors.TextPrimary,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Clue breakdown
+                if (solv.reasons.isNotEmpty()) {
+                    item {
+                        InfoCard {
+                            Text(
+                                text = "Clues that helped narrow it down:",
+                                color = MeowfiaColors.Primary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            for (reason in solv.reasons) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "- $reason",
+                                    color = MeowfiaColors.TextPrimary,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Possible worlds
+                if (solv.worldDescriptions.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "POSSIBLE SCENARIOS",
+                            color = MeowfiaColors.TextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Each scenario below is consistent with all the claims made. The real one is marked.",
+                            color = MeowfiaColors.TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    // Show up to 12 worlds (avoid overwhelming UI)
+                    val worldsToShow = solv.worldDescriptions.take(12)
+                    itemsIndexed(worldsToShow) { index, world ->
+                        val borderColor = if (world.isActualWorld) MeowfiaColors.Farm
+                            else MeowfiaColors.TextSecondary.copy(alpha = 0.3f)
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (world.isActualWorld)
+                                    MeowfiaColors.Farm.copy(alpha = 0.08f)
+                                else MeowfiaColors.SurfaceElevated
+                            ),
+                            border = BorderStroke(
+                                if (world.isActualWorld) 2.dp else 1.dp,
+                                borderColor
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Scenario ${index + 1}",
+                                        color = if (world.isActualWorld) MeowfiaColors.Farm else MeowfiaColors.TextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (world.isActualWorld) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "WHAT ACTUALLY HAPPENED",
+                                            color = MeowfiaColors.Farm,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                if (world.meowfiaNames.isEmpty()) {
+                                    Text(
+                                        text = "No Meowfia — everyone is Farm",
+                                        color = MeowfiaColors.TextSecondary,
+                                        fontSize = 12.sp,
+                                        fontStyle = FontStyle.Italic
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Meowfia: ${world.meowfiaNames.joinToString(", ")}",
+                                        color = MeowfiaColors.Meowfia,
+                                        fontSize = 12.sp
+                                    )
+                                    Text(
+                                        text = "Farm: ${world.farmNames.joinToString(", ")}",
+                                        color = MeowfiaColors.Farm,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (solv.worldDescriptions.size > 12) {
+                        item {
+                            Text(
+                                text = "... and ${solv.worldDescriptions.size - 12} more scenarios",
+                                color = MeowfiaColors.TextSecondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // --- Section 13: Narrative Log ---
             if (analysis.narrativeLog.isNotEmpty()) {
                 item { SectionHeader("Engine Narrative Log") }
                 item {

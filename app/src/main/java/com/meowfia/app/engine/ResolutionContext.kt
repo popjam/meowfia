@@ -127,11 +127,17 @@ class ResolutionContext(
 
     /** Replays all modifications so far to get a player's current alignment. */
     fun getCurrentAlignment(playerId: Int): Alignment {
-        var alignments = players.associate { it.id to it.alignment }.toMutableMap()
+        val alignments = players.associate { it.id to it.alignment }.toMutableMap()
         for (mod in modifications) {
             when (mod) {
+                is RoleModification.SwapRoles -> {
+                    val alignA = alignments[mod.playerIdA]
+                    val alignB = alignments[mod.playerIdB]
+                    if (alignA != null) alignments[mod.playerIdB] = alignA
+                    if (alignB != null) alignments[mod.playerIdA] = alignB
+                }
                 is RoleModification.SetAlignment -> alignments[mod.playerId] = mod.alignment
-                else -> { /* SwapRoles and SetRole don't affect alignment */ }
+                is RoleModification.SetRole -> { /* no effect on alignment */ }
             }
         }
         return alignments[playerId] ?: players.first { it.id == playerId }.alignment
@@ -158,13 +164,20 @@ class ResolutionContext(
         }
     }
 
-    /** Replays all modifications to compute the final alignment for each player. */
+    /** Replays all modifications to compute the final alignment for each player.
+     *  Role swaps also swap alignments — the alignment stays with the role, not the player. */
     fun computeFinalAlignments(): Map<Int, Alignment> {
         val alignments = players.associate { it.id to it.alignment }.toMutableMap()
         for (mod in modifications) {
             when (mod) {
+                is RoleModification.SwapRoles -> {
+                    val alignA = alignments[mod.playerIdA]
+                    val alignB = alignments[mod.playerIdB]
+                    if (alignA != null) alignments[mod.playerIdB] = alignA
+                    if (alignB != null) alignments[mod.playerIdA] = alignB
+                }
                 is RoleModification.SetAlignment -> alignments[mod.playerId] = mod.alignment
-                else -> { /* no effect on alignment */ }
+                is RoleModification.SetRole -> { /* no effect on alignment */ }
             }
         }
         // Only return entries that actually changed

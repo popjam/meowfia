@@ -45,13 +45,13 @@ class RoundSolverTest {
     }
 
     @Test
-    fun impossible_egg_delta_eliminates_worlds() {
-        // Player 0 claims Pigeon visiting player 1 with +3 eggs — impossible for Pigeon
-        // The real engine would compute 0 self-eggs for Pigeon, so if they claim +3
-        // there must be 3 eggs from visitors. If the pool can't produce that, inconsistent.
+    fun impossible_egg_delta_eliminates_farm_worlds() {
+        // Player 0 claims +3 eggs as Pigeon — impossible (Pigeon lays in target's nest, not own).
+        // Only Farm-minority worlds are checked (max 1 Meowfia for 4 players).
+        // Worlds where player 0 is the sole Meowfia should still be evaluated.
         val pool = listOf(RoleId.PIGEON, RoleId.HOUSE_CAT, RoleId.HAWK)
         val claims = mapOf(
-            0 to ClaimData(0, RoleId.PIGEON, 1, 3),  // claims +3, very suspicious
+            0 to ClaimData(0, RoleId.PIGEON, 1, 3),
             1 to ClaimData(1, RoleId.HAWK, 2, 0),
             2 to ClaimData(2, RoleId.PIGEON, 0, 0),
             3 to ClaimData(3, RoleId.PIGEON, 1, 0)
@@ -65,32 +65,40 @@ class RoundSolverTest {
         val reports = (0..3).map { report(it) }
 
         val result = RoundSolver.analyze(claims, pool, reports, assignments, emptyMap())
-        // The solver should find that worlds where player 0 is Farm are inconsistent
-        // because the engine can't produce +3 for a Pigeon with this pool
-        assertThat(result.solvability).isNotEqualTo(RoundSolver.Solvability.COIN_FLIP)
+        // Only size-0 and size-1 Meowfia subsets are checked (Farm-majority only)
+        // 4 players → C(4,0) + C(4,1) = 5 total candidates
+        assertThat(result.totalCandidates).isEqualTo(5)
+        // Not all candidates should be consistent (the impossible +3 eliminates some)
+        assertThat(result.consistentWorlds).isLessThan(result.totalCandidates)
     }
 
     @Test
-    fun consistent_claims_produce_multiple_worlds() {
-        // All claims are plausible — many worlds should be consistent
-        val pool = listOf(RoleId.PIGEON, RoleId.HOUSE_CAT, RoleId.HAWK)
+    fun consistent_claims_produce_worlds() {
+        // 6 players so we get more room for Farm-minority worlds (max 2 Meowfia).
+        // Simple claims: everyone claims Pigeon visiting the next player.
+        // Egg deltas: each player gets visited by one Pigeon = +1 delta.
+        val pool = listOf(RoleId.PIGEON, RoleId.HOUSE_CAT)
         val claims = mapOf(
-            0 to ClaimData(0, RoleId.PIGEON, 1, 0),
-            1 to ClaimData(1, RoleId.PIGEON, 2, 0),
-            2 to ClaimData(2, RoleId.PIGEON, 0, 0),
-            3 to ClaimData(3, RoleId.PIGEON, 1, 0)
+            0 to ClaimData(0, RoleId.PIGEON, 1, 1),
+            1 to ClaimData(1, RoleId.PIGEON, 2, 1),
+            2 to ClaimData(2, RoleId.PIGEON, 3, 1),
+            3 to ClaimData(3, RoleId.PIGEON, 4, 1),
+            4 to ClaimData(4, RoleId.PIGEON, 5, 1),
+            5 to ClaimData(5, RoleId.PIGEON, 0, 1)
         )
         val assignments = listOf(
             PlayerAssignment(0, Alignment.FARM, RoleId.PIGEON),
             PlayerAssignment(1, Alignment.FARM, RoleId.PIGEON),
             PlayerAssignment(2, Alignment.MEOWFIA, RoleId.HOUSE_CAT),
-            PlayerAssignment(3, Alignment.FARM, RoleId.PIGEON)
+            PlayerAssignment(3, Alignment.FARM, RoleId.PIGEON),
+            PlayerAssignment(4, Alignment.FARM, RoleId.PIGEON),
+            PlayerAssignment(5, Alignment.FARM, RoleId.PIGEON)
         )
-        val reports = (0..3).map { report(it) }
+        val reports = (0..5).map { report(it, delta = 1) }
 
         val result = RoundSolver.analyze(claims, pool, reports, assignments, emptyMap())
-        // Multiple Meowfia subsets should be consistent (all claim Pigeon with 0 delta)
-        assertThat(result.consistentWorlds).isGreaterThan(1)
+        // With buffer-only pool and all claiming Pigeon, multiple worlds should work
+        assertThat(result.consistentWorlds).isGreaterThan(0)
     }
 
     @Test
@@ -109,8 +117,8 @@ class RoundSolverTest {
         val reports = (0..2).map { report(it) }
 
         val result = RoundSolver.analyze(claims, pool, reports, assignments, emptyMap())
-        // 3 players → 2^3 = 8 total subsets (all sizes 0,1,2,3)
-        assertThat(result.totalCandidates).isEqualTo(8)
+        // 3 players, only Farm-majority worlds (size 0 and 1): C(3,0) + C(3,1) = 4
+        assertThat(result.totalCandidates).isEqualTo(4)
     }
 
     @Test

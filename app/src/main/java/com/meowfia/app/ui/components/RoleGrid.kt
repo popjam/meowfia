@@ -2,13 +2,16 @@ package com.meowfia.app.ui.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -31,15 +34,18 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.ui.theme.MeowfiaColors
 
 /**
- * A grid of role icons + names, separated by type (Farm / Meowfia / Flower).
+ * A grid of uniform-sized role cards, separated by type (Farm / Meowfia / Flower).
  * Tap calls [onRoleTap], long-press calls [onRoleLongPress].
+ * Tapping a category header calls [onCategoryTap] to toggle all roles of that type.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RoleGrid(
     roles: List<RoleId>,
+    selectedRoles: Set<RoleId> = emptySet(),
     onRoleTap: (RoleId) -> Unit = {},
     onRoleLongPress: (RoleId) -> Unit = {},
+    onCategoryTap: ((CardType) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val grouped = remember(roles) {
@@ -67,18 +73,38 @@ fun RoleGrid(
                 CardType.MEOWFIA_ANIMAL -> MeowfiaColors.Meowfia
                 CardType.FLOWER -> MeowfiaColors.Confused
             }
+            val allOfTypeSelected = typeRoles.all { it in selectedRoles }
 
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    text = label,
-                    color = labelColor,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (onCategoryTap != null) Modifier.clickable { onCategoryTap(type) }
+                            else Modifier
+                        )
+                        .padding(top = 8.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = label,
+                        color = labelColor,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (onCategoryTap != null) {
+                        Text(
+                            text = if (allOfTypeSelected) "tap to clear" else "tap to add all",
+                            color = MeowfiaColors.TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
             }
 
             items(typeRoles, key = { it.name }) { role ->
+                val isSelected = role in selectedRoles
                 val borderColor = when (role.cardType) {
                     CardType.FARM_ANIMAL -> MeowfiaColors.Farm
                     CardType.MEOWFIA_ANIMAL -> MeowfiaColors.Meowfia
@@ -87,31 +113,45 @@ fun RoleGrid(
 
                 Card(
                     modifier = Modifier
-                        .width(80.dp)
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
                         .combinedClickable(
                             onClick = { onRoleTap(role) },
                             onLongClick = { onRoleLongPress(role) }
                         ),
                     shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = MeowfiaColors.SurfaceElevated),
-                    border = BorderStroke(1.5.dp, borderColor)
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected)
+                            borderColor.copy(alpha = 0.15f)
+                        else
+                            MeowfiaColors.SurfaceElevated
+                    ),
+                    border = BorderStroke(
+                        width = if (isSelected) 2.dp else 1.dp,
+                        color = if (isSelected) borderColor else borderColor.copy(alpha = 0.4f)
+                    )
                 ) {
                     Column(
-                        modifier = Modifier.padding(6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        RoleIcon(roleId = role, size = 40)
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.weight(1f))
+                        RoleIcon(roleId = role, size = 36)
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = role.displayName,
-                            color = MeowfiaColors.TextPrimary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
+                            color = if (isSelected) borderColor else MeowfiaColors.TextPrimary,
+                            fontSize = 10.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             textAlign = TextAlign.Center,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            lineHeight = 13.sp
+                            lineHeight = 12.sp
                         )
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }

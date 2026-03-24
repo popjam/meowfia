@@ -1,15 +1,12 @@
 package com.meowfia.app.ui.screens
 
-import android.media.ToneGenerator
+import android.graphics.Bitmap
 import android.media.AudioManager
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.BorderStroke
+import android.media.ToneGenerator
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,9 +22,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -50,13 +49,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.meowfia.app.data.model.CardType
+import com.meowfia.app.data.model.PreConfiguredPlayer
 import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.qr.QrScannerView
 import com.meowfia.app.ui.components.MeowfiaPrimaryButton
 import com.meowfia.app.ui.components.MeowfiaSecondaryButton
+import com.meowfia.app.ui.components.ProfilePicturePicker
+import com.meowfia.app.ui.components.ProfileThumbnail
 import com.meowfia.app.ui.components.RoleCardOverlay
 import com.meowfia.app.ui.components.RoleGrid
 import com.meowfia.app.ui.components.RoleIcon
+import com.meowfia.app.ui.components.generateColorProfile
 import com.meowfia.app.ui.theme.MeowfiaColors
 import com.meowfia.app.util.hapticTick
 import kotlinx.coroutines.delay
@@ -64,31 +67,29 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PoolSetupScreen(
-    onStartGame: (selectedRoles: List<RoleId>, playerCount: Int, botCount: Int) -> Unit
+    onStartGame: (selectedRoles: List<RoleId>, playerSlots: List<PreConfiguredPlayer>) -> Unit
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) } // 0 = QR (default), 1 = Manual
-    var playerCount by remember { mutableIntStateOf(6) }
-    var botCount by remember { mutableIntStateOf(0) }
-    val selectedRoles = remember {
-        mutableStateListOf(RoleId.PIGEON, RoleId.HOUSE_CAT)
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val selectedRoles = remember { mutableStateListOf(RoleId.PIGEON, RoleId.HOUSE_CAT) }
+    val playerSlots = remember {
+        mutableStateListOf<PreConfiguredPlayer>().apply {
+            repeat(3) { add(PreConfiguredPlayer(isBot = true)) }
+        }
     }
+    var editingPlayerIndex by remember { mutableStateOf<Int?>(null) }
     var overlayRole by remember { mutableStateOf<RoleId?>(null) }
     var lastScannedRole by remember { mutableStateOf<RoleId?>(null) }
     val view = LocalView.current
 
-    // Confirmation sound generator
     val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80) }
-    DisposableEffect(Unit) {
-        onDispose { toneGenerator.release() }
+    DisposableEffect(Unit) { onDispose { toneGenerator.release() } }
+
+    LaunchedEffect(lastScannedRole) {
+        if (lastScannedRole != null) { delay(1500); lastScannedRole = null }
     }
 
-    // Auto-clear scanned confirmation after 1.5s
-    LaunchedEffect(lastScannedRole) {
-        if (lastScannedRole != null) {
-            delay(1500)
-            lastScannedRole = null
-        }
-    }
+    val playerCount = playerSlots.size
+    val botCount = playerSlots.count { it.isBot }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -96,105 +97,36 @@ fun PoolSetupScreen(
                 .fillMaxSize()
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
-            Text(
-                text = "Pool Setup",
-                color = MeowfiaColors.TextPrimary,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
+            Text("Pool Setup", color = MeowfiaColors.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Player bubble row
+            Text("Players", color = MeowfiaColors.TextSecondary, fontSize = 13.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            PlayerBubbleRow(
+                slots = playerSlots,
+                onRemove = { index -> if (playerSlots.size > 3) playerSlots.removeAt(index) },
+                onAdd = { if (playerSlots.size < 8) playerSlots.add(PreConfiguredPlayer()) },
+                onLongPress = { index -> editingPlayerIndex = index }
             )
-            Spacer(modifier = Modifier.height(12.dp))
 
-            // Player count selector
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Players:", color = MeowfiaColors.TextPrimary, fontSize = 18.sp)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    MeowfiaSecondaryButton(
-                        text = "-",
-                        onClick = {
-                            if (playerCount > 3) {
-                                playerCount--
-                                if (botCount > playerCount) botCount = playerCount
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        enabled = playerCount > 3
-                    )
-                    Text(
-                        text = "$playerCount",
-                        color = MeowfiaColors.Primary,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    MeowfiaSecondaryButton(
-                        text = "+",
-                        onClick = { if (playerCount < 8) playerCount++ },
-                        modifier = Modifier.weight(1f),
-                        enabled = playerCount < 8
-                    )
-                }
+            if (playerSlots.all { it.isBot }) {
+                Text("Spectator mode", color = MeowfiaColors.TextSecondary, fontSize = 12.sp)
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Bot count selector
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Bots:", color = MeowfiaColors.TextPrimary, fontSize = 18.sp)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    MeowfiaSecondaryButton(
-                        text = "-",
-                        onClick = { if (botCount > 0) botCount-- },
-                        modifier = Modifier.weight(1f),
-                        enabled = botCount > 0
-                    )
-                    Text(
-                        text = "$botCount",
-                        color = MeowfiaColors.Primary,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    MeowfiaSecondaryButton(
-                        text = "+",
-                        onClick = { if (botCount < playerCount) botCount++ },
-                        modifier = Modifier.weight(1f),
-                        enabled = botCount < playerCount
-                    )
-                }
-            }
-
-            if (botCount == playerCount) {
-                Text(
-                    text = "Spectator mode — all players are bots",
-                    color = MeowfiaColors.TextSecondary,
-                    fontSize = 13.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Pool bubbles - horizontal scrollable row
+            // Pool bubbles
             PoolBubbleRow(
                 roles = selectedRoles,
                 onRemove = { role -> selectedRoles.remove(role) },
                 onLongPress = { role -> overlayRole = role }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Tab selector
-            TabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MeowfiaColors.Surface
-            ) {
+            TabRow(selectedTabIndex = selectedTab, containerColor = MeowfiaColors.Surface) {
                 Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
                     Text("Scan QR", modifier = Modifier.padding(12.dp), color = MeowfiaColors.TextPrimary)
                 }
@@ -207,7 +139,6 @@ fun PoolSetupScreen(
 
             when (selectedTab) {
                 0 -> {
-                    // QR scanner with front camera
                     Box(modifier = Modifier.weight(1f)) {
                         QrScannerView(
                             onCardScanned = { roleId ->
@@ -220,38 +151,25 @@ fun PoolSetupScreen(
                             allowDuplicates = true,
                             modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp))
                         )
-
                         // Scan confirmation overlay
-                        AnimatedVisibility(
+                        androidx.compose.animation.AnimatedVisibility(
                             visible = lastScannedRole != null,
-                            enter = scaleIn() + fadeIn(),
-                            exit = scaleOut() + fadeOut(),
+                            enter = androidx.compose.animation.scaleIn() + androidx.compose.animation.fadeIn(),
+                            exit = androidx.compose.animation.scaleOut() + androidx.compose.animation.fadeOut(),
                             modifier = Modifier.align(Alignment.Center)
                         ) {
                             lastScannedRole?.let { scanned ->
                                 Box(
                                     modifier = Modifier
-                                        .background(
-                                            MeowfiaColors.Surface.copy(alpha = 0.9f),
-                                            RoundedCornerShape(16.dp)
-                                        )
+                                        .background(MeowfiaColors.Surface.copy(alpha = 0.9f), RoundedCornerShape(16.dp))
                                         .padding(20.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         RoleIcon(roleId = scanned, size = 56)
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = scanned.displayName,
-                                            color = MeowfiaColors.Primary,
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Text(
-                                            text = "Added!",
-                                            color = MeowfiaColors.Farm,
-                                            fontSize = 14.sp
-                                        )
+                                        Text(scanned.displayName, color = MeowfiaColors.Primary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                        Text("Added!", color = MeowfiaColors.Farm, fontSize = 14.sp)
                                     }
                                 }
                             }
@@ -259,71 +177,223 @@ fun PoolSetupScreen(
                     }
                 }
                 1 -> {
-                    // Manual selection — role grid
-                    val implementedRoles = remember {
-                        RoleId.entries.filter { it.implemented && !it.isBuffer }
-                    }
-
+                    val implementedRoles = remember { RoleId.entries.filter { it.implemented && !it.isBuffer } }
                     RoleGrid(
                         roles = implementedRoles,
-                        onRoleTap = { role -> selectedRoles.add(role) },
+                        selectedRoles = selectedRoles.toSet(),
+                        onRoleTap = { role ->
+                            if (role in selectedRoles) selectedRoles.remove(role)
+                            else selectedRoles.add(role)
+                        },
                         onRoleLongPress = { role -> overlayRole = role },
+                        onCategoryTap = { type ->
+                            val rolesOfType = implementedRoles.filter { it.cardType == type }
+                            val allSelected = rolesOfType.all { it in selectedRoles }
+                            if (allSelected) {
+                                selectedRoles.removeAll { it.cardType == type && !it.isBuffer }
+                            } else {
+                                for (r in rolesOfType) { if (r !in selectedRoles) selectedRoles.add(r) }
+                            }
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                MeowfiaSecondaryButton(
-                    text = "All Roles",
-                    onClick = {
-                        val allImplemented = RoleId.entries.filter { it.implemented && !it.isBuffer }
-                        for (role in allImplemented) {
-                            if (role !in selectedRoles) selectedRoles.add(role)
-                        }
-                    },
-                    modifier = Modifier.weight(1f).height(44.dp)
-                )
-                MeowfiaSecondaryButton(
-                    text = "Clear",
-                    onClick = {
-                        selectedRoles.removeAll { !it.isBuffer }
-                    },
-                    modifier = Modifier.weight(1f).height(44.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
             if (selectedRoles.size > 2) {
                 MeowfiaPrimaryButton(
                     text = "Start Game",
-                    onClick = { onStartGame(selectedRoles.toList(), playerCount, botCount) }
+                    onClick = { onStartGame(selectedRoles.toList(), playerSlots.toList()) }
                 )
             } else {
                 MeowfiaPrimaryButton(
                     text = "Start with Defaults",
                     onClick = {
-                        val defaults = listOf(RoleId.PIGEON, RoleId.HOUSE_CAT)
-                        onStartGame(defaults, playerCount, botCount)
+                        onStartGame(listOf(RoleId.PIGEON, RoleId.HOUSE_CAT), playerSlots.toList())
                     }
                 )
             }
         }
 
-        // Role card overlay (long-press)
+        // Role card overlay
         RoleCardOverlay(roleId = overlayRole, onDismiss = { overlayRole = null })
+
+        // Player customization overlay
+        if (editingPlayerIndex != null) {
+            val idx = editingPlayerIndex!!
+            PlayerCustomizationOverlay(
+                slot = playerSlots[idx],
+                playerIndex = idx,
+                onUpdate = { updated -> playerSlots[idx] = updated },
+                onDismiss = { editingPlayerIndex = null }
+            )
+        }
     }
 }
 
-/**
- * Horizontal scrollable row of pool "bubbles" showing selected roles.
- * Duplicate roles are stacked with a count badge.
- * Buffer roles (Pigeon, House Cat) have a dashed-style indicator.
- * Tapping removes one copy; long-press shows the role card.
- */
+// --- Player Bubble Row ---
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PlayerBubbleRow(
+    slots: List<PreConfiguredPlayer>,
+    onRemove: (Int) -> Unit,
+    onAdd: () -> Unit,
+    onLongPress: (Int) -> Unit
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        itemsIndexed(slots) { index, slot ->
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(52.dp)
+                    .height(66.dp)
+                    .combinedClickable(
+                        onClick = { onRemove(index) },
+                        onLongClick = { onLongPress(index) }
+                    )
+            ) {
+                if (slot.isBot) {
+                    // Bot bubble
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(MeowfiaColors.SurfaceElevated)
+                            .border(2.dp, MeowfiaColors.TextSecondary, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("B", color = MeowfiaColors.TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else if (slot.profileBitmap != null) {
+                    ProfileThumbnail(bitmap = slot.profileBitmap, size = 44)
+                } else {
+                    val bitmap = remember(index) { generateColorProfile(index) }
+                    ProfileThumbnail(bitmap = bitmap, size = 44)
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = when {
+                        slot.isBot -> slot.name ?: "Bot"
+                        slot.name != null -> slot.name
+                        else -> "P${index + 1}"
+                    },
+                    color = MeowfiaColors.TextSecondary,
+                    fontSize = 9.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
+                )
+            }
+        }
+
+        // Add button
+        item {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.width(52.dp).height(66.dp).clickable { onAdd() }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, MeowfiaColors.Primary.copy(alpha = 0.5f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("+", color = MeowfiaColors.Primary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text("Add", color = MeowfiaColors.TextSecondary, fontSize = 9.sp)
+            }
+        }
+    }
+}
+
+// --- Player Customization Overlay ---
+
+@Composable
+private fun PlayerCustomizationOverlay(
+    slot: PreConfiguredPlayer,
+    playerIndex: Int,
+    onUpdate: (PreConfiguredPlayer) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember(playerIndex) { mutableStateOf(slot.name ?: "") }
+    var profile by remember(playerIndex) { mutableStateOf(slot.profileBitmap) }
+    var isBot by remember(playerIndex) { mutableStateOf(slot.isBot) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MeowfiaColors.Background.copy(alpha = 0.85f))
+            .clickable(enabled = false) {},
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MeowfiaColors.Surface)
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "Customize Player ${playerIndex + 1}",
+                color = MeowfiaColors.Primary,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Name", color = MeowfiaColors.TextSecondary) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MeowfiaColors.Primary,
+                    unfocusedBorderColor = MeowfiaColors.TextSecondary,
+                    focusedTextColor = MeowfiaColors.TextPrimary,
+                    unfocusedTextColor = MeowfiaColors.TextPrimary,
+                    cursorColor = MeowfiaColors.Primary
+                )
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (!isBot) {
+                ProfilePicturePicker(
+                    playerIndex = playerIndex,
+                    onProfileChanged = { bmp -> profile = bmp },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            MeowfiaSecondaryButton(
+                text = if (isBot) "Make Human" else "Make Bot",
+                onClick = { isBot = !isBot }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            MeowfiaPrimaryButton(
+                text = "Done",
+                onClick = {
+                    val finalName = name.trim().ifEmpty { null }
+                    onUpdate(PreConfiguredPlayer(name = finalName, profileBitmap = profile, isBot = isBot))
+                    onDismiss()
+                }
+            )
+        }
+    }
+}
+
+// --- Pool Bubble Row (for roles) ---
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PoolBubbleRow(
@@ -331,45 +401,33 @@ private fun PoolBubbleRow(
     onRemove: (RoleId) -> Unit,
     onLongPress: (RoleId) -> Unit
 ) {
-    // Group by role and count
     val grouped = remember(roles.toList()) {
         val counts = mutableMapOf<RoleId, Int>()
         for (r in roles) counts[r] = (counts[r] ?: 0) + 1
-        // Preserve insertion order of first occurrence
         val seen = mutableSetOf<RoleId>()
-        roles.mapNotNull { r ->
-            if (seen.add(r)) r to counts[r]!! else null
-        }
+        roles.mapNotNull { r -> if (seen.add(r)) r to counts[r]!! else null }
     }
 
     Column {
-        Text(
-            text = "Pool: ${roles.size} cards",
-            color = MeowfiaColors.TextSecondary,
-            fontSize = 13.sp
-        )
+        Text("Pool: ${roles.size} cards", color = MeowfiaColors.TextSecondary, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(6.dp))
-
         LazyRow(
             contentPadding = PaddingValues(horizontal = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(grouped, key = { it.first.name }) { (role, count) ->
+            itemsIndexed(grouped) { _, (role, count) ->
                 Box(
-                    modifier = Modifier
-                        .combinedClickable(
-                            onClick = { if (!role.isBuffer) onRemove(role) },
-                            onLongClick = { onLongPress(role) }
-                        )
+                    modifier = Modifier.combinedClickable(
+                        onClick = { if (!role.isBuffer) onRemove(role) },
+                        onLongClick = { onLongPress(role) }
+                    )
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.width(56.dp)
+                        modifier = Modifier.width(56.dp).height(70.dp)
                     ) {
                         Box {
                             RoleIcon(roleId = role, size = 44)
-
-                            // Count badge for duplicates
                             if (count > 1) {
                                 Box(
                                     modifier = Modifier
@@ -379,16 +437,9 @@ private fun PoolBubbleRow(
                                         .background(MeowfiaColors.Secondary, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "$count",
-                                        color = MeowfiaColors.TextPrimary,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Text("$count", color = MeowfiaColors.TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
-
-                            // Buffer indicator
                             if (role.isBuffer) {
                                 Box(
                                     modifier = Modifier
@@ -398,16 +449,10 @@ private fun PoolBubbleRow(
                                         .background(MeowfiaColors.Primary, CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "B",
-                                        color = MeowfiaColors.TextOnPrimary,
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Text("B", color = MeowfiaColors.TextOnPrimary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
-
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = role.displayName,

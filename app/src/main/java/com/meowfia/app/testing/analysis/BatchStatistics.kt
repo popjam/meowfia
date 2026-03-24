@@ -68,6 +68,12 @@ data class BatchStatistics(
     val coinFlipRate: Double,
     val avgSuspectsWhenNarrowed: Double,
 
+    // Solvability distribution
+    val solvabilityPercentages: List<Int> = emptyList(),
+    val avgSolvabilityPercent: Double = 0.0,
+    val meowfiaCountDistribution: Map<Int, Int> = emptyMap(),
+    val meowfiaCountWinRates: Map<Int, Double> = emptyMap(),
+
     // Samples
     val sampleLogs: List<SimGameResult>
 )

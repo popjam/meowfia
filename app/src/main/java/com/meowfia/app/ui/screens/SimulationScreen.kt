@@ -70,6 +70,10 @@ fun SimulationScreen(
     var showAdvanced by remember { mutableStateOf(false) }
     var seedText by remember { mutableStateOf("") }
     var meowfiaChance by remember { mutableFloatStateOf(0.33f) }
+    val defaultAllowed = remember {
+        RoleId.entries.filter { it.implemented && !it.isFlower && !it.isBuffer }.toSet()
+    }
+    var allowedRoles by remember { mutableStateOf(defaultAllowed) }
 
     var singleResult by remember { mutableStateOf<SimGameResult?>(null) }
     var batchResult by remember { mutableStateOf<BatchStatistics?>(null) }
@@ -94,7 +98,8 @@ fun SimulationScreen(
                     includeFlowers = includeFlowers,
                     strategyDistribution = strategyDist,
                     meowfiaChance = if (meowfiaChance != 0.33f) meowfiaChance else null,
-                    verbosity = if (gameCount == 1) Verbosity.FULL else Verbosity.MINIMAL
+                    verbosity = if (gameCount == 1) Verbosity.FULL else Verbosity.MINIMAL,
+                    allowedRoles = allowedRoles.ifEmpty { null }
                 )
 
                 if (gameCount == 1) {
@@ -144,6 +149,8 @@ fun SimulationScreen(
                     showAdvanced = showAdvanced,
                     seedText = seedText,
                     meowfiaChance = meowfiaChance,
+                    allowedRoles = allowedRoles,
+                    defaultAllowed = defaultAllowed,
                     onPlayerCountChange = { playerCount = it },
                     onRoundCountChange = { roundCount = it },
                     onGameCountChange = { gameCount = it },
@@ -151,7 +158,8 @@ fun SimulationScreen(
                     onStrategyChange = { strategyDist = it },
                     onToggleAdvanced = { showAdvanced = !showAdvanced },
                     onSeedChange = { seedText = it },
-                    onMeowfiaChanceChange = { meowfiaChance = it }
+                    onMeowfiaChanceChange = { meowfiaChance = it },
+                    onAllowedRolesChange = { allowedRoles = it }
                 ) }
             }
 
@@ -205,6 +213,8 @@ private fun ConfigSection(
     showAdvanced: Boolean,
     seedText: String,
     meowfiaChance: Float,
+    allowedRoles: Set<RoleId>,
+    defaultAllowed: Set<RoleId>,
     onPlayerCountChange: (Int) -> Unit,
     onRoundCountChange: (Int) -> Unit,
     onGameCountChange: (Int) -> Unit,
@@ -212,7 +222,8 @@ private fun ConfigSection(
     onStrategyChange: (StrategyDistribution) -> Unit,
     onToggleAdvanced: () -> Unit,
     onSeedChange: (String) -> Unit,
-    onMeowfiaChanceChange: (Float) -> Unit
+    onMeowfiaChanceChange: (Float) -> Unit,
+    onAllowedRolesChange: (Set<RoleId>) -> Unit
 ) {
     Column {
         SectionHeader("Basic Settings")
@@ -341,6 +352,76 @@ private fun ConfigSection(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Role Pool Selector
+        SectionHeader("Role Pool")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = ComposeAlignment.CenterVertically
+        ) {
+            Text(
+                "${allowedRoles.size} roles selected",
+                color = MeowfiaColors.TextSecondary,
+                fontSize = 13.sp
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "All",
+                    color = MeowfiaColors.Primary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable {
+                        val allToggleable = RoleId.entries.filter { it.implemented && !it.isFlower }
+                        onAllowedRolesChange(allToggleable.toSet())
+                    }
+                )
+                Text(
+                    "Clear",
+                    color = MeowfiaColors.Secondary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { onAllowedRolesChange(emptySet()) }
+                )
+                Text(
+                    "Default",
+                    color = MeowfiaColors.TextSecondary,
+                    fontSize = 13.sp,
+                    modifier = Modifier.clickable { onAllowedRolesChange(defaultAllowed) }
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val toggleableRoles = RoleId.entries.filter { it.implemented && !it.isFlower }
+            for (role in toggleableRoles) {
+                val selected = role in allowedRoles
+                FilterChip(
+                    selected = selected,
+                    onClick = {
+                        onAllowedRolesChange(
+                            if (selected) allowedRoles - role else allowedRoles + role
+                        )
+                    },
+                    label = { Text(role.displayName, fontSize = 11.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = if (role.isBuffer) MeowfiaColors.TextSecondary.copy(alpha = 0.3f)
+                            else if (role.isMeowfiaAnimal) MeowfiaColors.Meowfia.copy(alpha = 0.3f)
+                            else MeowfiaColors.Farm.copy(alpha = 0.3f),
+                        selectedLabelColor = if (role.isBuffer) MeowfiaColors.TextPrimary
+                            else if (role.isMeowfiaAnimal) MeowfiaColors.Meowfia
+                            else MeowfiaColors.Farm,
+                        containerColor = MeowfiaColors.Surface,
+                        labelColor = MeowfiaColors.TextSecondary
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -407,6 +488,41 @@ private fun androidx.compose.foundation.layout.ColumnScope.SingleGameResultsView
                     )
                 }
                 Spacer(modifier = Modifier.height(2.dp))
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+
+    // Solvability overview
+    val solvResults = result.roundLogs.mapNotNull { it.solvability }
+    if (solvResults.isNotEmpty()) {
+        val avgSolv = solvResults
+            .filter { it.totalCandidates > 0 }
+            .map { (1.0 - it.consistentWorlds.toDouble() / it.totalCandidates) * 100 }
+            .let { if (it.isNotEmpty()) it.average() else 0.0 }
+        SummaryCard("Solvability") {
+            StatRow("Avg Solvability", "%.1f%%".format(avgSolv))
+            Spacer(modifier = Modifier.height(4.dp))
+            for ((idx, log) in result.roundLogs.withIndex()) {
+                val s = log.solvability ?: continue
+                val pct = if (s.totalCandidates > 0) {
+                    ((1.0 - s.consistentWorlds.toDouble() / s.totalCandidates) * 100)
+                } else 100.0
+                val (verdict, vColor) = when (s.solvability) {
+                    com.meowfia.app.testing.sim.RoundSolver.Solvability.SOLVED ->
+                        "SOLVED" to MeowfiaColors.Farm
+                    com.meowfia.app.testing.sim.RoundSolver.Solvability.NARROWED ->
+                        "NARROWED" to MeowfiaColors.Primary
+                    com.meowfia.app.testing.sim.RoundSolver.Solvability.COIN_FLIP ->
+                        "COIN FLIP" to MeowfiaColors.TextSecondary
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("R${idx + 1}: ${"%.0f".format(pct)}%", color = MeowfiaColors.TextPrimary, fontSize = 12.sp)
+                    Text(verdict, color = vColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
@@ -567,6 +683,169 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Farm vs Meowfia Wins
+        item {
+            SummaryCard("Farm vs Meowfia Wins") {
+                val farmPct = (stats.farmWinRate * 100).toInt()
+                val meowfiaPct = 100 - farmPct
+                val barWidth = 24
+                val farmBar = barWidth * farmPct / 100
+                val meowfiaBar = barWidth - farmBar
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    Text("Farm    ", color = MeowfiaColors.TextSecondary, fontSize = 12.sp)
+                    Text(
+                        "${"█".repeat(farmBar)}${"░".repeat(meowfiaBar)}",
+                        color = MeowfiaColors.Farm,
+                        fontSize = 12.sp
+                    )
+                    Text("  $farmPct%", color = MeowfiaColors.Farm, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                    Text("Meowfia ", color = MeowfiaColors.TextSecondary, fontSize = 12.sp)
+                    Text(
+                        "${"░".repeat(farmBar)}${"█".repeat(meowfiaBar)}",
+                        color = MeowfiaColors.Meowfia,
+                        fontSize = 12.sp
+                    )
+                    Text("  $meowfiaPct%", color = MeowfiaColors.Meowfia, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Meowfia Count Distribution
+        if (stats.meowfiaCountDistribution.isNotEmpty()) {
+            item {
+                SummaryCard("Meowfia Count Distribution") {
+                    val totalRounds = stats.meowfiaCountDistribution.values.sum().coerceAtLeast(1)
+                    val maxCount = stats.meowfiaCountDistribution.values.maxOrNull() ?: 1
+                    for (mc in stats.meowfiaCountDistribution.keys.sorted()) {
+                        val count = stats.meowfiaCountDistribution[mc] ?: 0
+                        val pct = count * 100 / totalRounds
+                        val barLen = (count * 16 / maxCount).coerceIn(0, 16)
+                        val winRate = stats.meowfiaCountWinRates[mc]
+                        val winStr = if (mc == 0) "N/A" else "Farm wins ${"%.0f".format((winRate ?: 0.0) * 100)}%"
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
+                            Text(
+                                "${mc}M",
+                                color = MeowfiaColors.TextSecondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.width(24.dp)
+                            )
+                            Text(
+                                "█".repeat(barLen),
+                                color = MeowfiaColors.Meowfia,
+                                fontSize = 12.sp,
+                                modifier = Modifier.width(100.dp)
+                            )
+                            Text(
+                                " $pct%  ($winStr)",
+                                color = MeowfiaColors.TextPrimary,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        // Role Win Rate Leaderboard
+        if (stats.roleWinRates.size >= 2) {
+            item {
+                SummaryCard("Role Win Rate Leaderboard") {
+                    val sorted = stats.roleWinRates.entries.sortedByDescending { it.value }
+                    val top5 = sorted.take(5)
+                    val bottom5 = sorted.takeLast(5).reversed()
+                    Text("Top 5", color = MeowfiaColors.Farm, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    for ((role, rate) in top5) {
+                        val pct = (rate * 100).toInt()
+                        val barLen = (pct * 16 / 100).coerceIn(0, 16)
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
+                            Text(
+                                role.displayName,
+                                color = MeowfiaColors.TextPrimary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.width(100.dp)
+                            )
+                            Text(
+                                "█".repeat(barLen),
+                                color = MeowfiaColors.Farm,
+                                fontSize = 12.sp,
+                                modifier = Modifier.width(100.dp)
+                            )
+                            Text(" $pct%", color = MeowfiaColors.TextPrimary, fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Bottom 5", color = MeowfiaColors.Secondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    for ((role, rate) in bottom5) {
+                        val pct = (rate * 100).toInt()
+                        val barLen = (pct * 16 / 100).coerceIn(0, 16)
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
+                            Text(
+                                role.displayName,
+                                color = MeowfiaColors.TextPrimary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.width(100.dp)
+                            )
+                            Text(
+                                "█".repeat(barLen),
+                                color = MeowfiaColors.Secondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.width(100.dp)
+                            )
+                            Text(" $pct%", color = MeowfiaColors.TextPrimary, fontSize = 12.sp)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        // Solvability Distribution
+        if (stats.solvabilityPercentages.isNotEmpty()) {
+            item {
+                SummaryCard("Solvability Distribution") {
+                    StatRow("Avg Solvability", "%.1f%%".format(stats.avgSolvabilityPercent))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    val buckets = IntArray(10)
+                    for (pct in stats.solvabilityPercentages) {
+                        val idx = (pct / 10).coerceIn(0, 9)
+                        buckets[idx]++
+                    }
+                    val maxBucket = buckets.maxOrNull()?.coerceAtLeast(1) ?: 1
+                    for (i in 0 until 10) {
+                        val lo = i * 10
+                        val hi = lo + 10
+                        val barLen = (buckets[i] * 20 / maxBucket).coerceIn(0, 20)
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
+                            Text(
+                                "${lo}-${hi}%",
+                                color = MeowfiaColors.TextSecondary,
+                                fontSize = 11.sp,
+                                modifier = Modifier.width(48.dp)
+                            )
+                            Text(
+                                "█".repeat(barLen),
+                                color = MeowfiaColors.Primary,
+                                fontSize = 11.sp,
+                                modifier = Modifier.width(130.dp)
+                            )
+                            Text(
+                                " ${buckets[i]}",
+                                color = MeowfiaColors.TextPrimary,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
         }
 
         // Night Economy

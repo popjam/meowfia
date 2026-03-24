@@ -43,7 +43,9 @@ object RoundSolver {
         /** Human-readable reasons for the deduction. */
         val reasons: List<String>,
         val playerCount: Int,
-        val meowfiaCount: Int
+        val meowfiaCount: Int,
+        /** Each consistent world as a set of Meowfia player IDs. */
+        val consistentWorldDetails: List<Set<Int>> = emptyList()
     )
 
     /**
@@ -75,19 +77,23 @@ object RoundSolver {
         // Enumerate all possible Meowfia subsets of size 0..playerCount
         // For typical games (4-8 players), this is at most 2^8 = 256 subsets
         val consistentMeowfiaPlayers = mutableSetOf<Int>()
-        var consistentWorlds = 0
+        val consistentWorldList = mutableListOf<Set<Int>>()
         var totalCandidates = 0
 
-        // Try subsets of each possible size (0, 1, 2, ...)
-        for (subsetSize in 0..playerCount) {
+        // Only consider worlds where Farm strictly outnumbers Meowfia.
+        // Worlds where Meowfia >= Farm are excluded because Meowfia would
+        // simply coordinate to win — deduction is meaningless.
+        val maxMeowfiaSize = (playerCount - 1) / 2  // strictly less than half
+        for (subsetSize in 0..maxMeowfiaSize) {
             for (meowfiaSubset in combinations(playerIds, subsetSize)) {
                 totalCandidates++
                 if (isConsistent(meowfiaSubset.toSet(), claims, pool, visitGraph, playerIds)) {
-                    consistentWorlds++
+                    consistentWorldList.add(meowfiaSubset.toSet())
                     consistentMeowfiaPlayers.addAll(meowfiaSubset)
                 }
             }
         }
+        val consistentWorlds = consistentWorldList.size
 
         // Also run investigation cross-reference checks
         val investigationReasons = checkInvestigations(claims, dawnReports)
@@ -97,20 +103,26 @@ object RoundSolver {
         val suspects = consistentMeowfiaPlayers
         val cleared = playerIds.filter { it !in suspects }.toSet()
 
-        // Classify
+        // Classify based on how many worlds were eliminated
+        val eliminatedPct = if (totalCandidates > 0)
+            (1.0 - consistentWorlds.toDouble() / totalCandidates) * 100 else 100.0
+
         val solvability = when {
             consistentWorlds == 0 -> {
                 reasons.add("No consistent world found — someone's claims are impossible")
-                Solvability.SOLVED // Contradictions detected
+                Solvability.SOLVED
             }
             consistentWorlds == 1 -> {
                 reasons.add("Exactly one consistent Meowfia assignment exists")
                 Solvability.SOLVED
             }
-            suspects.size < playerCount -> {
+            eliminatedPct >= 90 -> {
                 reasons.add("${cleared.size} player(s) cleared, ${suspects.size} remain as suspects")
-                if (suspects.size <= meowfiaCount + 1) Solvability.SOLVED
-                else Solvability.NARROWED
+                Solvability.SOLVED
+            }
+            eliminatedPct > 0 -> {
+                reasons.add("${cleared.size} player(s) cleared, ${suspects.size} remain as suspects")
+                Solvability.NARROWED
             }
             else -> Solvability.COIN_FLIP
         }
@@ -123,7 +135,8 @@ object RoundSolver {
             totalCandidates = totalCandidates,
             reasons = reasons,
             playerCount = playerCount,
-            meowfiaCount = meowfiaCount
+            meowfiaCount = meowfiaCount,
+            consistentWorldDetails = consistentWorldList
         )
     }
 
