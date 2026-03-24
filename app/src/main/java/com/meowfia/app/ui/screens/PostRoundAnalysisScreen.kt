@@ -602,12 +602,18 @@ fun PostRoundAnalysisScreen(
                                     )
                                 } else {
                                     Text(
-                                        text = "Meowfia: ${world.meowfiaNames.joinToString(", ")}",
+                                        text = "Meowfia: ${world.meowfiaNames.joinToString(", ") { name ->
+                                            val role = world.assumedRoles[name]
+                                            if (role != null) "$name ($role)" else name
+                                        }}",
                                         color = MeowfiaColors.Meowfia,
                                         fontSize = 12.sp
                                     )
                                     Text(
-                                        text = "Farm: ${world.farmNames.joinToString(", ")}",
+                                        text = "Farm: ${world.farmNames.joinToString(", ") { name ->
+                                            val role = world.assumedRoles[name]
+                                            if (role != null) "$name ($role)" else name
+                                        }}",
                                         color = MeowfiaColors.Farm,
                                         fontSize = 12.sp
                                     )

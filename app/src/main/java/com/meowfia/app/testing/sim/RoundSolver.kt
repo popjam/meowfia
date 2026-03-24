@@ -158,12 +158,15 @@ object RoundSolver {
         val farmClaims = claims.filter { it.key !in meowfiaSet }
         val claimedFarmRoles = farmClaims.values.map { it.claimedRole }
 
-        // Non-buffer roles can only be claimed once (unless Twinflower — not tracked here)
-        val nonBufferCounts = claimedFarmRoles.filter { !it.isBuffer }.groupingBy { it }.eachCount()
-        val poolCounts = pool.filter { !it.isFlower }.groupingBy { it }.eachCount()
-        for ((role, count) in nonBufferCounts) {
-            val available = (poolCounts[role] ?: 0) + if (role.isBuffer) Int.MAX_VALUE else 0
-            if (count > maxOf(1, available)) return false
+        // Non-buffer roles can only be claimed once — unless Twinflower is in pool
+        val hasTwinflower = RoleId.TWINFLOWER in pool
+        if (!hasTwinflower) {
+            val nonBufferCounts = claimedFarmRoles.filter { !it.isBuffer }.groupingBy { it }.eachCount()
+            val poolCounts = pool.filter { !it.isFlower }.groupingBy { it }.eachCount()
+            for ((role, count) in nonBufferCounts) {
+                val available = (poolCounts[role] ?: 0) + if (role.isBuffer) Int.MAX_VALUE else 0
+                if (count > maxOf(1, available)) return false
+            }
         }
 
         // Step 2: Simulate egg flow using the real engine
@@ -238,10 +241,14 @@ object RoundSolver {
             }
         }
 
-        val roleClaims = claims.entries.groupBy { it.value.claimedRole }
-            .filter { (role, claimants) -> !role.isBuffer && claimants.size > 1 }
-        for ((role, claimants) in roleClaims) {
-            reasons.add("${claimants.size} players claim ${role.displayName}")
+        // Duplicate non-buffer roles are suspicious — unless Twinflower allows it
+        val hasTwinflower = RoleId.TWINFLOWER in pool
+        if (!hasTwinflower) {
+            val roleClaims = claims.entries.groupBy { it.value.claimedRole }
+                .filter { (role, claimants) -> !role.isBuffer && claimants.size > 1 }
+            for ((role, claimants) in roleClaims) {
+                reasons.add("${claimants.size} players claim ${role.displayName}")
+            }
         }
 
         return reasons

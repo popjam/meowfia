@@ -18,7 +18,8 @@ data class SimConfig(
     val verbosity: Verbosity = Verbosity.FULL,
     val strategyDistribution: StrategyDistribution = StrategyDistribution.BALANCED,
     val meowfiaChance: Float? = null,
-    val allowedRoles: Set<RoleId>? = null
+    val allowedRoles: Set<RoleId>? = null,
+    val scoringRules: ScoringRules = ScoringRules()
 ) {
     companion object {
         val DEFAULT_NAMES = listOf(

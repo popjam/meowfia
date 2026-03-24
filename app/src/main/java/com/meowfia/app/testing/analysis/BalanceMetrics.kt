@@ -214,6 +214,243 @@ object BalanceMetrics {
             (meowfiaCountFarmWins[mc] ?: 0).toDouble() / total
         }
 
+        // Win/Loss patterns
+        data class PatternAccum(var count: Int = 0, var totalScore: Double = 0.0, var winners: Int = 0)
+        val patternMap = mutableMapOf<String, PatternAccum>()
+        for (result in results) {
+            val nPlayers = result.config.playerCount
+            val gameWinner = result.finalScores.indices.maxByOrNull { result.finalScores[it] } ?: -1
+            for (playerIdx in 0 until nPlayers) {
+                val pattern = result.roundLogs.mapNotNull { log ->
+                    val vr = log.votingResult ?: return@mapNotNull null
+                    val assignment = log.assignments.find { it.playerId == playerIdx } ?: return@mapNotNull null
+                    if (assignment.alignment == vr.winningTeam) "W" else "L"
+                }.joinToString("-")
+                if (pattern.isEmpty()) continue
+                val acc = patternMap.getOrPut(pattern) { PatternAccum() }
+                acc.count++
+                acc.totalScore += result.finalScores[playerIdx]
+                if (playerIdx == gameWinner) acc.winners++
+            }
+        }
+        val winLossPatterns = patternMap.mapValues { (key, acc) ->
+            WinLossPatternStats(
+                pattern = key,
+                occurrences = acc.count,
+                avgFinalScore = if (acc.count > 0) acc.totalScore / acc.count else 0.0,
+                winnerCount = acc.winners
+            )
+        }
+
+        // Alignment patterns (F-F-M, M-F-F etc.)
+        val alignPatternMap = mutableMapOf<String, PatternAccum>()
+        for (result in results) {
+            val nPlayers = result.config.playerCount
+            val gameWinner = result.finalScores.indices.maxByOrNull { result.finalScores[it] } ?: -1
+            for (playerIdx in 0 until nPlayers) {
+                val pattern = result.roundLogs.map { log ->
+                    val assignment = log.assignments.find { it.playerId == playerIdx }
+                    if (assignment?.alignment == com.meowfia.app.data.model.Alignment.MEOWFIA) "M" else "F"
+                }.joinToString("-")
+                if (pattern.isEmpty()) continue
+                val acc = alignPatternMap.getOrPut(pattern) { PatternAccum() }
+                acc.count++
+                acc.totalScore += result.finalScores[playerIdx]
+                if (playerIdx == gameWinner) acc.winners++
+            }
+        }
+        val alignmentPatterns = alignPatternMap.mapValues { (key, acc) ->
+            WinLossPatternStats(pattern = key, occurrences = acc.count,
+                avgFinalScore = if (acc.count > 0) acc.totalScore / acc.count else 0.0, winnerCount = acc.winners)
+        }
+
+        // Hand luck correlation: average hand card value vs final score
+        val handValues = mutableListOf<Double>()
+        val handScores = mutableListOf<Double>()
+        for (result in results) {
+            for (playerIdx in 0 until result.config.playerCount) {
+                var totalCardValue = 0
+                var totalCards = 0
+                for (log in result.roundLogs) {
+                    val vr = log.votingResult ?: continue
+                    val thrown = vr.thrown[playerIdx] ?: emptyList()
+                    val kept = vr.kept[playerIdx] ?: emptyList()
+                    totalCardValue += thrown.sumOf { it.value } + kept.sumOf { it.value }
+                    totalCards += thrown.size + kept.size
+                }
+                if (totalCards > 0) {
+                    handValues.add(totalCardValue.toDouble() / totalCards)
+                    handScores.add(result.finalScores[playerIdx].toDouble())
+                }
+            }
+        }
+        val handLuckCorrelation = pearson(handValues, handScores)
+
+        // Luck buckets (low/mid/high avg card value → avg score)
+        data class LuckAccum(var count: Int = 0, var totalHandVal: Double = 0.0, var totalScore: Double = 0.0)
+        val bucketMap = mutableMapOf("Low (1-4)" to LuckAccum(), "Mid (5-8)" to LuckAccum(), "High (9-13)" to LuckAccum())
+        for (i in handValues.indices) {
+            val bucket = when {
+                handValues[i] < 4.5 -> "Low (1-4)"
+                handValues[i] < 8.5 -> "Mid (5-8)"
+                else -> "High (9-13)"
+            }
+            val acc = bucketMap[bucket]!!
+            acc.count++
+            acc.totalHandVal += handValues[i]
+            acc.totalScore += handScores[i]
+        }
+        val handLuckBuckets = listOf("Low (1-4)", "Mid (5-8)", "High (9-13)").map { label ->
+            val acc = bucketMap[label]!!
+            LuckBucket(label, if (acc.count > 0) acc.totalHandVal / acc.count else 0.0,
+                if (acc.count > 0) acc.totalScore / acc.count else 0.0, acc.count)
+        }
+
+        // Record facts
+        var bestPointsGain: RecordEntry? = null
+        var bestEggsGained: RecordEntry? = null
+        var worstEggsLost: RecordEntry? = null
+        var mostCardsBet: RecordEntry? = null
+        var biggestLoss: RecordEntry? = null
+        var biggestCatchUp: RecordEntry? = null
+
+        for ((gameIdx, result) in results.withIndex()) {
+            val nPlayers = result.config.playerCount
+            for (log in result.roundLogs) {
+                val vr = log.votingResult ?: continue
+                for (i in 0 until nPlayers) {
+                    val name = result.playerNames.getOrElse(i) { "P$i" }
+                    val pre = log.preScores.getOrElse(i) { 0 }
+                    val post = log.postScores.getOrElse(i) { 0 }
+                    val delta = post - pre
+                    val dawn = log.dawnReports.find { it.playerId == i }
+                    val eggDelta = dawn?.actualEggDelta ?: 0
+                    val thrown = vr.thrown[i]?.size ?: 0
+
+                    if (delta > (bestPointsGain?.value ?: 0))
+                        bestPointsGain = RecordEntry(name, delta, log.roundNum, gameIdx)
+                    if (eggDelta > (bestEggsGained?.value ?: 0))
+                        bestEggsGained = RecordEntry(name, eggDelta, log.roundNum, gameIdx)
+                    if (eggDelta < (worstEggsLost?.value ?: 0))
+                        worstEggsLost = RecordEntry(name, eggDelta, log.roundNum, gameIdx)
+                    if (thrown > (mostCardsBet?.value ?: 0))
+                        mostCardsBet = RecordEntry(name, thrown, log.roundNum, gameIdx)
+                    if (delta < (biggestLoss?.value ?: 0))
+                        biggestLoss = RecordEntry(name, delta, log.roundNum, gameIdx)
+                }
+            }
+            // Biggest catch-up: biggest rank improvement from mid to end
+            val nRounds = result.roundLogs.size
+            if (nRounds >= 3) {
+                val midIdx = nRounds / 2 - 1
+                for (i in 0 until nPlayers) {
+                    val midScore = result.perRoundDeltas.getOrNull(i)?.getOrNull(midIdx) ?: 0
+                    val finalScore = result.finalScores[i]
+                    val catchUp = finalScore - midScore
+                    if (catchUp > (biggestCatchUp?.value ?: 0)) {
+                        val name = result.playerNames.getOrElse(i) { "P$i" }
+                        biggestCatchUp = RecordEntry(name, catchUp, 0, gameIdx)
+                    }
+                }
+            }
+        }
+        // Additional records
+        var highestFinalScore: RecordEntry? = null
+        var lowestFinalScore: RecordEntry? = null
+        var highestCardsBetAgainstOne: RecordEntry? = null
+        var drawCount = 0
+        var roundsWithNoBuffers = 0
+
+        for ((gameIdx, result) in results.withIndex()) {
+            for (i in result.finalScores.indices) {
+                val name = result.playerNames.getOrElse(i) { "P$i" }
+                val score = result.finalScores[i]
+                if (score > (highestFinalScore?.value ?: Int.MIN_VALUE))
+                    highestFinalScore = RecordEntry(name, score, 0, gameIdx)
+                if (score < (lowestFinalScore?.value ?: Int.MAX_VALUE))
+                    lowestFinalScore = RecordEntry(name, score, 0, gameIdx)
+            }
+            for (log in result.roundLogs) {
+                // Draws (ties in votes)
+                val vr = log.votingResult ?: continue
+                val maxVotes = vr.votes.values.maxOrNull() ?: 0
+                val tiedCount = vr.votes.values.count { it == maxVotes }
+                if (tiedCount > 1) drawCount++
+
+                // Most cards bet against a single player
+                val votesPerTarget = mutableMapOf<Int, Int>()
+                for ((pid, cards) in vr.thrown) {
+                    val target = vr.targets[pid] ?: continue
+                    votesPerTarget[target] = (votesPerTarget[target] ?: 0) + cards.size
+                }
+                for ((targetId, totalCards) in votesPerTarget) {
+                    if (totalCards > (highestCardsBetAgainstOne?.value ?: 0)) {
+                        val targetName = result.playerNames.getOrElse(targetId) { "P$targetId" }
+                        highestCardsBetAgainstOne = RecordEntry(targetName, totalCards, log.roundNum, gameIdx)
+                    }
+                }
+
+                // Rounds with no buffer roles (no Pigeon/House Cat in assignments)
+                val hasBuffer = log.assignments.any {
+                    it.roleId == com.meowfia.app.data.model.RoleId.PIGEON ||
+                    it.roleId == com.meowfia.app.data.model.RoleId.HOUSE_CAT
+                }
+                if (!hasBuffer) roundsWithNoBuffers++
+            }
+        }
+
+        // Status effect records across all games
+        var mostRoleSwaps: RecordEntry? = null
+        var mostConfused: RecordEntry? = null
+        var mostHugged: RecordEntry? = null
+        var mostWinks: RecordEntry? = null
+        for ((gameIdx, result) in results.withIndex()) {
+            for (log in result.roundLogs) {
+                if (log.roleSwapCount > (mostRoleSwaps?.value ?: 0))
+                    mostRoleSwaps = RecordEntry("", log.roleSwapCount, log.roundNum, gameIdx)
+                if (log.confusedPlayers > (mostConfused?.value ?: 0))
+                    mostConfused = RecordEntry("", log.confusedPlayers, log.roundNum, gameIdx)
+                if (log.huggedPlayers > (mostHugged?.value ?: 0))
+                    mostHugged = RecordEntry("", log.huggedPlayers, log.roundNum, gameIdx)
+                if (log.winkPlayers > (mostWinks?.value ?: 0))
+                    mostWinks = RecordEntry("", log.winkPlayers, log.roundNum, gameIdx)
+            }
+        }
+
+        // Best/worst from computed maps
+        val bestRole = roleMetrics.maxByOrNull { it.value.teamWinRate }?.key?.displayName
+        val worstRole = roleMetrics.filter { it.value.timesAssigned >= 5 }.minByOrNull { it.value.teamWinRate }?.key?.displayName
+        val bestWL = winLossPatterns.values.filter { it.occurrences >= 3 }.maxByOrNull { it.winnerCount.toDouble() / it.occurrences }?.pattern
+        val worstWL = winLossPatterns.values.filter { it.occurrences >= 3 }.minByOrNull { it.winnerCount.toDouble() / it.occurrences }?.pattern
+        val bestAP = alignmentPatterns.values.filter { it.occurrences >= 3 }.maxByOrNull { it.winnerCount.toDouble() / it.occurrences }?.pattern
+        val worstAP = alignmentPatterns.values.filter { it.occurrences >= 3 }.minByOrNull { it.winnerCount.toDouble() / it.occurrences }?.pattern
+        val bestArchetype = strategyMeans.maxByOrNull { it.value }?.key
+
+        val recordFacts = RecordFacts(
+            mostPointsSingleRound = bestPointsGain,
+            mostEggsGained = bestEggsGained,
+            mostEggsLost = worstEggsLost,
+            mostCardsBet = mostCardsBet,
+            biggestLoss = biggestLoss,
+            biggestCatchUp = biggestCatchUp,
+            highestFinalScore = highestFinalScore,
+            lowestFinalScore = lowestFinalScore,
+            bestRole = bestRole,
+            worstRole = worstRole,
+            bestWinLossPattern = bestWL,
+            worstWinLossPattern = worstWL,
+            bestAlignmentPattern = bestAP,
+            worstAlignmentPattern = worstAP,
+            bestArchetype = bestArchetype,
+            drawCount = drawCount,
+            highestCardsBetAgainstOne = highestCardsBetAgainstOne,
+            roundsWithNoBuffers = roundsWithNoBuffers,
+            mostRoleSwaps = mostRoleSwaps,
+            mostConfused = mostConfused,
+            mostHugged = mostHugged,
+            mostWinks = mostWinks
+        )
+
         return BatchStatistics(
             nGames = results.size,
             nPlayers = config.playerCount,
@@ -253,6 +490,11 @@ object BalanceMetrics {
             avgSolvabilityPercent = avgSolvabilityPercent,
             meowfiaCountDistribution = meowfiaCountBuckets,
             meowfiaCountWinRates = meowfiaCountWinRates,
+            winLossPatterns = winLossPatterns,
+            alignmentPatterns = alignmentPatterns,
+            handLuckCorrelation = handLuckCorrelation,
+            handLuckBuckets = handLuckBuckets,
+            recordFacts = recordFacts,
             sampleLogs = sampleLogs
         )
     }

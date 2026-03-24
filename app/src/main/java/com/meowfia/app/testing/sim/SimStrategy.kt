@@ -45,17 +45,38 @@ data class SimStrategy(
         return candidates[random.nextInt(candidates.size)].id
     }
 
-    /** Choose which cards to throw and which to keep. v6: purely value-based. */
+    /** Choose which cards to throw and which to keep. v6: purely value-based.
+     *  On the final round, everyone throws more aggressively since kept cards
+     *  are only worth 1pt each. Conservative players specifically hoard until
+     *  the final round then dump everything. Skilled players modulate by confidence. */
     fun chooseThrow(
         hand: List<SimCard>,
         confidence: Float,
-        random: RandomProvider
+        random: RandomProvider,
+        roundNum: Int = 1,
+        totalRounds: Int = 1
     ): ThrowDecision {
         if (hand.isEmpty()) return ThrowDecision(emptyList(), emptyList())
 
-        val throwCount = maxOf(1, (hand.size * aggression).toInt())
+        val isFinalRound = roundNum >= totalRounds
 
-        // v6: sort by value — wilds first (0 risk), then low-value, then high-value
+        // Effective aggression: on the final round, everyone throws more
+        // Conservative players go all-in on the final round
+        // Skilled players scale by confidence (throw more when confident)
+        val effectiveAggression = if (isFinalRound) {
+            // Final round: conservative players dump everything, aggressive stay aggressive
+            val finalBoost = (1f - aggression) * 0.8f  // bigger boost for conservative
+            val skillMod = if (deduction > 0.5f) confidence * 0.2f else 0f
+            (aggression + finalBoost + skillMod).coerceIn(0.5f, 1f)
+        } else {
+            // Normal round: skilled players throw more when confident, less when not
+            val skillMod = if (deduction > 0.5f) (confidence - 0.5f) * 0.3f else 0f
+            (aggression + skillMod).coerceIn(0.1f, 0.95f)
+        }
+
+        val throwCount = maxOf(1, (hand.size * effectiveAggression).toInt())
+
+        // Sort by value — wilds first (0 risk), then low-value, then high-value
         // Higher confidence makes the player willing to throw higher-value cards
         val sorted = hand.sortedBy { card ->
             if (card.suit == Suit.WILD) -100f

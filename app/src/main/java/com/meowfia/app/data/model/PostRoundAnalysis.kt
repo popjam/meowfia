@@ -59,7 +59,9 @@ data class PlayerClaimSummary(
 data class WorldDescription(
     val meowfiaNames: List<String>,
     val farmNames: List<String>,
-    val isActualWorld: Boolean
+    val isActualWorld: Boolean,
+    /** Per-player assumed role in this world (name → role display name). */
+    val assumedRoles: Map<String, String> = emptyMap()
 )
 
 data class PoolSummary(

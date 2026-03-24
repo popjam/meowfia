@@ -15,7 +15,16 @@ import com.meowfia.app.roles.farm.SheepHandler
 import com.meowfia.app.roles.farm.SwitcherooHandler
 import com.meowfia.app.roles.farm.TitHandler
 import com.meowfia.app.roles.farm.TurkeyHandler
+import com.meowfia.app.roles.farm.BlindHawkHandler
+import com.meowfia.app.roles.farm.LovebirdHandler
+import com.meowfia.app.roles.farm.KookaburraHandler
+import com.meowfia.app.roles.farm.MagpieHandler
+import com.meowfia.app.roles.farm.KoalaHandler
+import com.meowfia.app.roles.farm.SheepdogHandler
 import com.meowfia.app.roles.meowfia.HouseCatHandler
+import com.meowfia.app.roles.meowfia.TopCatHandler
+import com.meowfia.app.roles.meowfia.MouserHandler
+import com.meowfia.app.roles.meowfia.FlooferHandler
 
 /** Central registry mapping each RoleId to its handler implementation. */
 object RoleRegistry {
@@ -48,5 +57,14 @@ object RoleRegistry {
         register(FrogHandler())
         register(SheepHandler())
         register(SwitcherooHandler())
+        register(BlindHawkHandler())
+        register(LovebirdHandler())
+        register(KookaburraHandler())
+        register(MagpieHandler())
+        register(TopCatHandler())
+        register(KoalaHandler())
+        register(SheepdogHandler())
+        register(MouserHandler())
+        register(FlooferHandler())
     }
 }

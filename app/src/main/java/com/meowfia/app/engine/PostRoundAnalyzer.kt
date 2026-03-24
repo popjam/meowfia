@@ -31,7 +31,8 @@ object PostRoundAnalyzer {
     fun analyze(
         gameState: GameState,
         context: ResolutionContext,
-        winningTeam: Alignment?
+        winningTeam: Alignment?,
+        botClaims: List<com.meowfia.app.bot.BotDayClaim> = emptyList()
     ): PostRoundAnalysis {
         val players = gameState.players
 
@@ -190,22 +191,40 @@ object PostRoundAnalyzer {
         val farmCount = players.count { it.alignment == Alignment.FARM }
         val meowCount = players.count { it.alignment == Alignment.MEOWFIA }
 
-        // Build claim summaries for display (used regardless of majority)
+        // Build claim summaries using actual bot claims where available
+        val botClaimMap = botClaims.associateBy { it.playerId }
         val playerClaimSummaries = players.map { player ->
-            val targetId = gameState.visitGraph[player.id]
-            val targetName = targetId?.let { id -> players.find { it.id == id }?.name }
-            val delta = context.getClampedEggDelta(player.id)
+            val botClaim = botClaimMap[player.id]
             val isMeowfia = player.alignment == Alignment.MEOWFIA
-            PlayerClaimSummary(
-                playerId = player.id,
-                playerName = player.name,
-                claimedRole = player.originalRoleId.displayName,
-                claimedTarget = targetName,
-                claimedEggDelta = delta,
-                actualRole = player.roleId.displayName,
-                actualAlignment = player.alignment.displayName,
-                wasLying = isMeowfia
-            )
+
+            if (botClaim != null) {
+                // Use the bot's actual claim (Farm bots are truthful, Meowfia bots lie)
+                PlayerClaimSummary(
+                    playerId = player.id,
+                    playerName = player.name,
+                    claimedRole = botClaim.claimedRole.displayName,
+                    claimedTarget = botClaim.claimedTargetName,
+                    claimedEggDelta = botClaim.claimedEggDelta,
+                    actualRole = player.roleId.displayName,
+                    actualAlignment = player.alignment.displayName,
+                    wasLying = botClaim.isLying
+                )
+            } else {
+                // Human player — use real data (assumed truthful if Farm)
+                val targetId = gameState.visitGraph[player.id]
+                val targetName = targetId?.let { id -> players.find { it.id == id }?.name }
+                val delta = context.getClampedEggDelta(player.id)
+                PlayerClaimSummary(
+                    playerId = player.id,
+                    playerName = player.name,
+                    claimedRole = if (isMeowfia) "???" else player.originalRoleId.displayName,
+                    claimedTarget = if (isMeowfia) "???" else targetName,
+                    claimedEggDelta = if (isMeowfia) 0 else delta,
+                    actualRole = player.roleId.displayName,
+                    actualAlignment = player.alignment.displayName,
+                    wasLying = isMeowfia
+                )
+            }
         }
 
         val solvability = try {
@@ -227,15 +246,29 @@ object PostRoundAnalyzer {
             } else {
                 val isEvenSplit = farmCount == meowCount
 
+                // Build claims from what players actually said, not their real roles
                 val claims = players.associate { player ->
-                    val targetId = gameState.visitGraph[player.id]
-                    val delta = context.getClampedEggDelta(player.id)
-                    player.id to ClaimData(
-                        playerId = player.id,
-                        claimedRole = player.originalRoleId,
-                        claimedTargetId = targetId,
-                        claimedEggDelta = delta
-                    )
+                    val botClaim = botClaimMap[player.id]
+                    if (botClaim != null) {
+                        // Use the bot's actual claim
+                        val claimedTargetId = players.find { it.name == botClaim.claimedTargetName }?.id
+                        player.id to ClaimData(
+                            playerId = player.id,
+                            claimedRole = botClaim.claimedRole,
+                            claimedTargetId = claimedTargetId,
+                            claimedEggDelta = botClaim.claimedEggDelta
+                        )
+                    } else {
+                        // Human: Farm assumed truthful, Meowfia unknown
+                        val targetId = gameState.visitGraph[player.id]
+                        val delta = context.getClampedEggDelta(player.id)
+                        player.id to ClaimData(
+                            playerId = player.id,
+                            claimedRole = player.originalRoleId,
+                            claimedTargetId = targetId,
+                            claimedEggDelta = delta
+                        )
+                    }
                 }
                 val dawnReports = gameState.dawnReports.values.toList().ifEmpty {
                     players.map { p ->
@@ -272,10 +305,21 @@ object PostRoundAnalyzer {
                 }
 
                 val worldDescriptions = result.consistentWorldDetails.map { meowfiaSet ->
+                    // In this world, Farm players have their claimed role, Meowfia get House Cat
+                    val assumedRoles = players.associate { p ->
+                        val name = p.name
+                        val role = if (p.id in meowfiaSet) {
+                            RoleId.HOUSE_CAT.displayName
+                        } else {
+                            claims[p.id]?.claimedRole?.displayName ?: p.originalRoleId.displayName
+                        }
+                        name to role
+                    }
                     com.meowfia.app.data.model.WorldDescription(
                         meowfiaNames = meowfiaSet.mapNotNull { id -> players.find { it.id == id }?.name },
                         farmNames = players.filter { it.id !in meowfiaSet }.map { it.name },
-                        isActualWorld = meowfiaSet == actualMeowfia
+                        isActualWorld = meowfiaSet == actualMeowfia,
+                        assumedRoles = assumedRoles
                     )
                 }
 

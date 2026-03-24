@@ -70,7 +70,7 @@ fun PoolSetupScreen(
     onStartGame: (selectedRoles: List<RoleId>, playerSlots: List<PreConfiguredPlayer>) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val selectedRoles = remember { mutableStateListOf(RoleId.PIGEON, RoleId.HOUSE_CAT) }
+    val selectedRoles = remember { mutableStateListOf<RoleId>() }
     val playerSlots = remember {
         mutableStateListOf<PreConfiguredPlayer>().apply {
             repeat(3) { add(PreConfiguredPlayer(isBot = true)) }
@@ -106,7 +106,7 @@ fun PoolSetupScreen(
             PlayerBubbleRow(
                 slots = playerSlots,
                 onRemove = { index -> if (playerSlots.size > 3) playerSlots.removeAt(index) },
-                onAdd = { if (playerSlots.size < 8) playerSlots.add(PreConfiguredPlayer()) },
+                onAdd = { if (playerSlots.size < 8) playerSlots.add(PreConfiguredPlayer(isBot = true)) },
                 onLongPress = { index -> editingPlayerIndex = index }
             )
 
@@ -120,7 +120,24 @@ fun PoolSetupScreen(
             PoolBubbleRow(
                 roles = selectedRoles,
                 onRemove = { role -> selectedRoles.remove(role) },
-                onLongPress = { role -> overlayRole = role }
+                onLongPress = { role -> overlayRole = role },
+                onAddRandom = {
+                    val existing = selectedRoles.toSet()
+                    val roll = Math.random()
+                    val type = when {
+                        roll < 0.60 -> CardType.FARM_ANIMAL
+                        roll < 0.90 -> CardType.MEOWFIA_ANIMAL
+                        else -> CardType.FLOWER
+                    }
+                    val candidates = RoleId.entries.filter {
+                        it.implemented && it.cardType == type && !it.isBuffer && it !in existing
+                    }
+                    val fallback = RoleId.entries.filter {
+                        it.implemented && !it.isBuffer && it !in existing
+                    }
+                    val pick = (candidates.ifEmpty { fallback }).randomOrNull()
+                    if (pick != null) selectedRoles.add(pick)
+                }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -177,10 +194,14 @@ fun PoolSetupScreen(
                     }
                 }
                 1 -> {
-                    val implementedRoles = remember { RoleId.entries.filter { it.implemented && !it.isBuffer } }
+                    val implementedRoles = remember { RoleId.entries.filter { it.implemented } }
+                    // Stable snapshot to avoid recomposition on every scroll frame
+                    val selectionSnapshot = remember(selectedRoles.size, selectedRoles.hashCode()) {
+                        selectedRoles.toSet()
+                    }
                     RoleGrid(
                         roles = implementedRoles,
-                        selectedRoles = selectedRoles.toSet(),
+                        selectedRoles = selectionSnapshot,
                         onRoleTap = { role ->
                             if (role in selectedRoles) selectedRoles.remove(role)
                             else selectedRoles.add(role)
@@ -190,30 +211,56 @@ fun PoolSetupScreen(
                             val rolesOfType = implementedRoles.filter { it.cardType == type }
                             val allSelected = rolesOfType.all { it in selectedRoles }
                             if (allSelected) {
-                                selectedRoles.removeAll { it.cardType == type && !it.isBuffer }
+                                selectedRoles.removeAll { it.cardType == type }
                             } else {
                                 for (r in rolesOfType) { if (r !in selectedRoles) selectedRoles.add(r) }
                             }
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f).fillMaxWidth()
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            if (selectedRoles.size > 2) {
-                MeowfiaPrimaryButton(
-                    text = "Start Game",
-                    onClick = { onStartGame(selectedRoles.toList(), playerSlots.toList()) }
-                )
-            } else {
-                MeowfiaPrimaryButton(
-                    text = "Start with Defaults",
-                    onClick = {
-                        onStartGame(listOf(RoleId.PIGEON, RoleId.HOUSE_CAT), playerSlots.toList())
-                    }
-                )
+
+            // Validate pool
+            val hasFarm = selectedRoles.any { it.isFarmAnimal }
+            val hasMeowfia = selectedRoles.any { it.isMeowfiaAnimal }
+            val hasTwinflower = selectedRoles.any { it == RoleId.TWINFLOWER }
+            val playerCount = playerSlots.size
+
+            // Buffer roles handle overflow: Pigeon covers extra Farm, House Cat covers extra Meowfia
+            val hasPigeon = RoleId.PIGEON in selectedRoles
+            val hasHouseCat = RoleId.HOUSE_CAT in selectedRoles
+            val farmRoleCount = selectedRoles.count { it.isFarmAnimal }
+            val meowfiaRoleCount = selectedRoles.count { it.isMeowfiaAnimal }
+
+            // Each team needs enough roles for worst case (all players on that team).
+            // Buffer roles act as unlimited overflow. Twinflower removes uniqueness constraint.
+            val farmOk = hasTwinflower || hasPigeon || farmRoleCount >= playerCount
+            val meowfiaOk = hasTwinflower || hasHouseCat || meowfiaRoleCount >= playerCount
+
+            val canStart = hasFarm && hasMeowfia && farmOk && meowfiaOk
+            val errorText = when {
+                selectedRoles.none { it.isFarmAnimal || it.isMeowfiaAnimal } -> "Select at least one role"
+                !hasFarm -> "Need at least one Farm role"
+                !hasMeowfia -> "Need at least one Meowfia role"
+                !farmOk -> "Farm needs Pigeon (buffer) or $playerCount unique Farm roles (or Twinflower)"
+                !meowfiaOk -> "Meowfia needs House Cat (buffer) or $playerCount unique Meowfia roles (or Twinflower)"
+                else -> null
             }
+
+            if (errorText != null) {
+                Text(errorText, color = MeowfiaColors.Secondary, fontSize = 12.sp,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            MeowfiaPrimaryButton(
+                text = "Start Game",
+                enabled = canStart,
+                onClick = { onStartGame(selectedRoles.toList(), playerSlots.toList()) }
+            )
         }
 
         // Role card overlay
@@ -399,7 +446,8 @@ private fun PlayerCustomizationOverlay(
 private fun PoolBubbleRow(
     roles: List<RoleId>,
     onRemove: (RoleId) -> Unit,
-    onLongPress: (RoleId) -> Unit
+    onLongPress: (RoleId) -> Unit,
+    onAddRandom: () -> Unit = {}
 ) {
     val grouped = remember(roles.toList()) {
         val counts = mutableMapOf<RoleId, Int>()
@@ -408,7 +456,7 @@ private fun PoolBubbleRow(
         roles.mapNotNull { r -> if (seen.add(r)) r to counts[r]!! else null }
     }
 
-    Column {
+    Column(modifier = Modifier.height(92.dp)) {
         Text("Pool: ${roles.size} cards", color = MeowfiaColors.TextSecondary, fontSize = 13.sp)
         Spacer(modifier = Modifier.height(6.dp))
         LazyRow(
@@ -418,7 +466,7 @@ private fun PoolBubbleRow(
             itemsIndexed(grouped) { _, (role, count) ->
                 Box(
                     modifier = Modifier.combinedClickable(
-                        onClick = { if (!role.isBuffer) onRemove(role) },
+                        onClick = { onRemove(role) },
                         onLongClick = { onLongPress(role) }
                     )
                 ) {
@@ -464,6 +512,29 @@ private fun PoolBubbleRow(
                             lineHeight = 11.sp
                         )
                     }
+                }
+            }
+
+            // Random add bubble
+            item {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .width(56.dp)
+                        .height(70.dp)
+                        .clickable { onAddRandom() }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, MeowfiaColors.Primary.copy(alpha = 0.5f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("?", color = MeowfiaColors.Primary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("Random", color = MeowfiaColors.TextSecondary, fontSize = 9.sp, textAlign = TextAlign.Center)
                 }
             }
         }

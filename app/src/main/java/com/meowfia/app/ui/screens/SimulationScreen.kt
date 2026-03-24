@@ -45,12 +45,18 @@ import com.meowfia.app.data.registry.RoleRegistry
 import com.meowfia.app.flowers.FlowerRegistry
 import com.meowfia.app.testing.analysis.BatchRunner
 import com.meowfia.app.testing.analysis.BatchStatistics
+import com.meowfia.app.testing.sim.Consolation
+import com.meowfia.app.testing.sim.LossThrownAction
+import com.meowfia.app.testing.sim.ScoringRules
 import com.meowfia.app.testing.sim.SimConfig
 import com.meowfia.app.testing.sim.SimEngine
 import com.meowfia.app.testing.sim.SimGameResult
 import com.meowfia.app.testing.sim.SimRoundLog
 import com.meowfia.app.testing.sim.StrategyDistribution
+import com.meowfia.app.testing.sim.TieBreaker
 import com.meowfia.app.testing.sim.Verbosity
+import com.meowfia.app.testing.sim.WinThrownAction
+import com.meowfia.app.testing.sim.WrongTargetPenalty
 import com.meowfia.app.ui.components.MeowfiaPrimaryButton
 import com.meowfia.app.ui.components.MeowfiaSecondaryButton
 import com.meowfia.app.ui.components.RoleIcon
@@ -75,6 +81,20 @@ fun SimulationScreen(
     }
     var allowedRoles by remember { mutableStateOf(defaultAllowed) }
 
+    // Scoring rules state
+    var startingHandSize by remember { mutableIntStateOf(3) }
+    var postRoundDraw by remember { mutableIntStateOf(2) }
+    var handCap by remember { mutableIntStateOf(0) }
+    var finalCardValue by remember { mutableIntStateOf(1) }
+    var minThrowPerRound by remember { mutableIntStateOf(1) }
+    var winThrownAction by remember { mutableStateOf(WinThrownAction.BANK_TO_SCORE_PILE) }
+    var flatWinBonusPts by remember { mutableIntStateOf(0) }
+    var lossThrownAction by remember { mutableStateOf(LossThrownAction.DISCARD) }
+    var flatLossPenaltyPts by remember { mutableIntStateOf(0) }
+    var consolation by remember { mutableStateOf(Consolation.RETURN_HIGHEST_TO_HAND) }
+    var wrongTargetPenalty by remember { mutableStateOf(WrongTargetPenalty.NONE) }
+    var tieBreaker by remember { mutableStateOf(TieBreaker.MEOWFIA_WINS) }
+
     var singleResult by remember { mutableStateOf<SimGameResult?>(null) }
     var batchResult by remember { mutableStateOf<BatchStatistics?>(null) }
     var isRunning by remember { mutableStateOf(false) }
@@ -91,15 +111,32 @@ fun SimulationScreen(
                 FlowerRegistry.initialize()
 
                 val seed = seedText.toLongOrNull() ?: System.currentTimeMillis()
+                val names = SimConfig.DEFAULT_NAMES.shuffled().take(playerCount)
+                val scoringRules = ScoringRules(
+                    startingHandSize = startingHandSize,
+                    postRoundDrawCount = postRoundDraw,
+                    handCap = handCap,
+                    finalCardValue = finalCardValue,
+                    minThrowPerRound = minThrowPerRound,
+                    winThrownAction = winThrownAction,
+                    flatWinPoints = flatWinBonusPts,
+                    lossThrownAction = lossThrownAction,
+                    flatLossPenaltyPoints = flatLossPenaltyPts,
+                    consolation = consolation,
+                    wrongTargetPenalty = wrongTargetPenalty,
+                    tieBreaker = tieBreaker
+                )
                 val config = SimConfig(
                     seed = seed,
                     playerCount = playerCount,
+                    playerNames = names,
                     roundCount = roundCount,
                     includeFlowers = includeFlowers,
                     strategyDistribution = strategyDist,
                     meowfiaChance = if (meowfiaChance != 0.33f) meowfiaChance else null,
                     verbosity = if (gameCount == 1) Verbosity.FULL else Verbosity.MINIMAL,
-                    allowedRoles = allowedRoles.ifEmpty { null }
+                    allowedRoles = allowedRoles.ifEmpty { null },
+                    scoringRules = scoringRules
                 )
 
                 if (gameCount == 1) {
@@ -151,6 +188,18 @@ fun SimulationScreen(
                     meowfiaChance = meowfiaChance,
                     allowedRoles = allowedRoles,
                     defaultAllowed = defaultAllowed,
+                    startingHandSize = startingHandSize,
+                    postRoundDraw = postRoundDraw,
+                    handCap = handCap,
+                    finalCardValue = finalCardValue,
+                    minThrowPerRound = minThrowPerRound,
+                    winThrownAction = winThrownAction,
+                    flatWinBonusPts = flatWinBonusPts,
+                    lossThrownAction = lossThrownAction,
+                    flatLossPenaltyPts = flatLossPenaltyPts,
+                    consolation = consolation,
+                    wrongTargetPenalty = wrongTargetPenalty,
+                    tieBreaker = tieBreaker,
                     onPlayerCountChange = { playerCount = it },
                     onRoundCountChange = { roundCount = it },
                     onGameCountChange = { gameCount = it },
@@ -159,7 +208,19 @@ fun SimulationScreen(
                     onToggleAdvanced = { showAdvanced = !showAdvanced },
                     onSeedChange = { seedText = it },
                     onMeowfiaChanceChange = { meowfiaChance = it },
-                    onAllowedRolesChange = { allowedRoles = it }
+                    onAllowedRolesChange = { allowedRoles = it },
+                    onStartingHandSizeChange = { startingHandSize = it },
+                    onPostRoundDrawChange = { postRoundDraw = it },
+                    onHandCapChange = { handCap = it },
+                    onFinalCardValueChange = { finalCardValue = it },
+                    onMinThrowChange = { minThrowPerRound = it },
+                    onWinThrownActionChange = { winThrownAction = it },
+                    onFlatWinBonusPtsChange = { flatWinBonusPts = it },
+                    onLossThrownActionChange = { lossThrownAction = it },
+                    onFlatLossPenaltyPtsChange = { flatLossPenaltyPts = it },
+                    onConsolationChange = { consolation = it },
+                    onWrongTargetPenaltyChange = { wrongTargetPenalty = it },
+                    onTieBreakerChange = { tieBreaker = it }
                 ) }
             }
 
@@ -215,6 +276,18 @@ private fun ConfigSection(
     meowfiaChance: Float,
     allowedRoles: Set<RoleId>,
     defaultAllowed: Set<RoleId>,
+    startingHandSize: Int,
+    postRoundDraw: Int,
+    handCap: Int,
+    finalCardValue: Int,
+    minThrowPerRound: Int,
+    winThrownAction: WinThrownAction,
+    flatWinBonusPts: Int,
+    lossThrownAction: LossThrownAction,
+    flatLossPenaltyPts: Int,
+    consolation: Consolation,
+    wrongTargetPenalty: WrongTargetPenalty,
+    tieBreaker: TieBreaker,
     onPlayerCountChange: (Int) -> Unit,
     onRoundCountChange: (Int) -> Unit,
     onGameCountChange: (Int) -> Unit,
@@ -223,7 +296,19 @@ private fun ConfigSection(
     onToggleAdvanced: () -> Unit,
     onSeedChange: (String) -> Unit,
     onMeowfiaChanceChange: (Float) -> Unit,
-    onAllowedRolesChange: (Set<RoleId>) -> Unit
+    onAllowedRolesChange: (Set<RoleId>) -> Unit,
+    onStartingHandSizeChange: (Int) -> Unit,
+    onPostRoundDrawChange: (Int) -> Unit,
+    onHandCapChange: (Int) -> Unit,
+    onFinalCardValueChange: (Int) -> Unit,
+    onMinThrowChange: (Int) -> Unit,
+    onWinThrownActionChange: (WinThrownAction) -> Unit,
+    onFlatWinBonusPtsChange: (Int) -> Unit,
+    onLossThrownActionChange: (LossThrownAction) -> Unit,
+    onFlatLossPenaltyPtsChange: (Int) -> Unit,
+    onConsolationChange: (Consolation) -> Unit,
+    onWrongTargetPenaltyChange: (WrongTargetPenalty) -> Unit,
+    onTieBreakerChange: (TieBreaker) -> Unit
 ) {
     Column {
         SectionHeader("Basic Settings")
@@ -422,6 +507,35 @@ private fun ConfigSection(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        ScoringSettingsSection(
+            startingHandSize = startingHandSize,
+            postRoundDraw = postRoundDraw,
+            handCap = handCap,
+            finalCardValue = finalCardValue,
+            minThrowPerRound = minThrowPerRound,
+            winThrownAction = winThrownAction,
+            flatWinBonusPts = flatWinBonusPts,
+            lossThrownAction = lossThrownAction,
+            flatLossPenaltyPts = flatLossPenaltyPts,
+            consolation = consolation,
+            wrongTargetPenalty = wrongTargetPenalty,
+            tieBreaker = tieBreaker,
+            onStartingHandSizeChange = onStartingHandSizeChange,
+            onPostRoundDrawChange = onPostRoundDrawChange,
+            onHandCapChange = onHandCapChange,
+            onFinalCardValueChange = onFinalCardValueChange,
+            onMinThrowChange = onMinThrowChange,
+            onWinThrownActionChange = onWinThrownActionChange,
+            onFlatWinBonusPtsChange = onFlatWinBonusPtsChange,
+            onLossThrownActionChange = onLossThrownActionChange,
+            onFlatLossPenaltyPtsChange = onFlatLossPenaltyPtsChange,
+            onConsolationChange = onConsolationChange,
+            onWrongTargetPenaltyChange = onWrongTargetPenaltyChange,
+            onTieBreakerChange = onTieBreakerChange
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -432,107 +546,120 @@ private fun androidx.compose.foundation.layout.ColumnScope.SingleGameResultsView
     result: SimGameResult,
     onBack: () -> Unit
 ) {
-    val scores = result.finalScores.mapIndexed { i, s -> result.strategies[i] to s }
+    val displayNames = result.finalScores.indices.map { i ->
+        val name = result.playerNames.getOrElse(i) { "P$i" }
+        val strat = result.strategies.getOrElse(i) { "" }
+        "$name ($strat)"
+    }
+    val scores = result.finalScores.mapIndexed { i, s -> displayNames[i] to s }
     val winner = scores.maxByOrNull { it.second }
 
-    Text(
-        text = "Game Complete — Seed: ${result.seed}",
-        color = MeowfiaColors.TextSecondary,
-        fontSize = 13.sp
-    )
-    Spacer(modifier = Modifier.height(4.dp))
-
-    // Final scores card
-    SummaryCard("Final Scores") {
-        scores.sortedByDescending { it.second }.forEach { (strategy, score) ->
-            val isWinner = score == winner?.second
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = strategy,
-                    color = if (isWinner) MeowfiaColors.Primary else MeowfiaColors.TextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = if (isWinner) FontWeight.Bold else FontWeight.Normal,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "$score pts${if (isWinner) " ★" else ""}",
-                    color = if (isWinner) MeowfiaColors.Primary else MeowfiaColors.TextSecondary,
-                    fontSize = 14.sp,
-                    fontWeight = if (isWinner) FontWeight.Bold else FontWeight.Normal
-                )
-            }
-        }
-    }
-
-    Spacer(modifier = Modifier.height(8.dp))
-
-    // Score progression
-    if (result.perRoundDeltas.isNotEmpty() && result.roundLogs.size > 1) {
-        SummaryCard("Score Progression") {
-            for ((roundIdx, log) in result.roundLogs.withIndex()) {
-                val scoresAtRound = log.postScores
-                val maxScore = scoresAtRound.maxOrNull()?.coerceAtLeast(1) ?: 1
-                Text(
-                    "Round ${roundIdx + 1}:",
-                    color = MeowfiaColors.TextSecondary,
-                    fontSize = 12.sp
-                )
-                scoresAtRound.forEachIndexed { i, s ->
-                    val name = result.strategies.getOrElse(i) { "P$i" }.take(8)
-                    val barLen = ((s.toFloat() / maxScore) * 20).toInt().coerceIn(0, 20)
-                    val bar = "█".repeat(barLen)
-                    Text(
-                        "  $name ${s.toString().padStart(4)} $bar",
-                        color = MeowfiaColors.TextPrimary,
-                        fontSize = 11.sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-    }
-
-    // Solvability overview
-    val solvResults = result.roundLogs.mapNotNull { it.solvability }
-    if (solvResults.isNotEmpty()) {
-        val avgSolv = solvResults
-            .filter { it.totalCandidates > 0 }
-            .map { (1.0 - it.consistentWorlds.toDouble() / it.totalCandidates) * 100 }
-            .let { if (it.isNotEmpty()) it.average() else 0.0 }
-        SummaryCard("Solvability") {
-            StatRow("Avg Solvability", "%.1f%%".format(avgSolv))
-            Spacer(modifier = Modifier.height(4.dp))
-            for ((idx, log) in result.roundLogs.withIndex()) {
-                val s = log.solvability ?: continue
-                val pct = if (s.totalCandidates > 0) {
-                    ((1.0 - s.consistentWorlds.toDouble() / s.totalCandidates) * 100)
-                } else 100.0
-                val (verdict, vColor) = when (s.solvability) {
-                    com.meowfia.app.testing.sim.RoundSolver.Solvability.SOLVED ->
-                        "SOLVED" to MeowfiaColors.Farm
-                    com.meowfia.app.testing.sim.RoundSolver.Solvability.NARROWED ->
-                        "NARROWED" to MeowfiaColors.Primary
-                    com.meowfia.app.testing.sim.RoundSolver.Solvability.COIN_FLIP ->
-                        "COIN FLIP" to MeowfiaColors.TextSecondary
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("R${idx + 1}: ${"%.0f".format(pct)}%", color = MeowfiaColors.TextPrimary, fontSize = 12.sp)
-                    Text(verdict, color = vColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-    }
-
-    // Round-by-round details
+    // Everything in one scrollable list
     LazyColumn(modifier = Modifier.weight(1f)) {
-        items(result.roundLogs, key = { it.roundNum }) { roundLog ->
-            RoundDetailCard(roundLog = roundLog, strategies = result.strategies)
+        item {
+            Text(
+                text = "Game Complete — Seed: ${result.seed}",
+                color = MeowfiaColors.TextSecondary,
+                fontSize = 13.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+
+        // Final scores card
+        item {
+            SummaryCard("Final Scores") {
+                scores.sortedByDescending { it.second }.forEach { (strategy, score) ->
+                    val isWinner = score == winner?.second
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = strategy,
+                            color = if (isWinner) MeowfiaColors.Primary else MeowfiaColors.TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = if (isWinner) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "$score pts${if (isWinner) " ★" else ""}",
+                            color = if (isWinner) MeowfiaColors.Primary else MeowfiaColors.TextSecondary,
+                            fontSize = 14.sp,
+                            fontWeight = if (isWinner) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Score progression
+        if (result.perRoundDeltas.isNotEmpty() && result.roundLogs.size > 1) {
+            item {
+                SummaryCard("Score Progression") {
+                    for ((roundIdx, log) in result.roundLogs.withIndex()) {
+                        val scoresAtRound = log.postScores
+                        val maxScore = scoresAtRound.maxOrNull()?.coerceAtLeast(1) ?: 1
+                        Text(
+                            "Round ${roundIdx + 1}:",
+                            color = MeowfiaColors.TextSecondary,
+                            fontSize = 12.sp
+                        )
+                        scoresAtRound.forEachIndexed { i, s ->
+                            val name = result.playerNames.getOrElse(i) { "P$i" }.take(8)
+                            val barLen = ((s.toFloat() / maxScore) * 20).toInt().coerceIn(0, 20)
+                            val bar = "█".repeat(barLen)
+                            Text(
+                                "  $name ${s.toString().padStart(4)} $bar",
+                                color = MeowfiaColors.TextPrimary,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        // Solvability overview
+        val solvResults = result.roundLogs.mapNotNull { it.solvability }
+        if (solvResults.isNotEmpty()) {
+            item {
+                val avgSolv = solvResults
+                    .filter { it.totalCandidates > 0 }
+                    .map { (1.0 - it.consistentWorlds.toDouble() / it.totalCandidates) * 100 }
+                    .let { if (it.isNotEmpty()) it.average() else 0.0 }
+                SummaryCard("Solvability") {
+                    StatRow("Avg Solvability", "%.1f%%".format(avgSolv))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    for ((idx, log) in result.roundLogs.withIndex()) {
+                        val s = log.solvability ?: continue
+                        val pct = if (s.totalCandidates > 0) {
+                            ((1.0 - s.consistentWorlds.toDouble() / s.totalCandidates) * 100)
+                        } else 100.0
+                        val (verdict, vColor) = when (s.solvability) {
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.SOLVED ->
+                                "SOLVED" to MeowfiaColors.Farm
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.NARROWED ->
+                                "NARROWED" to MeowfiaColors.Primary
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.COIN_FLIP ->
+                                "COIN FLIP" to MeowfiaColors.TextSecondary
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("R${idx + 1}: ${"%.0f".format(pct)}%", color = MeowfiaColors.TextPrimary, fontSize = 12.sp)
+                            Text(verdict, color = vColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        // Round-by-round details
+        items(result.roundLogs, key = { it.roundNum }) { roundLog ->
+            RoundDetailCard(roundLog = roundLog, strategies = displayNames)
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
@@ -547,9 +674,32 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
     stats: BatchStatistics,
     onBack: () -> Unit
 ) {
+    // Pre-compute all formatted/sorted data once
+    val sortedStrategies = remember(stats) {
+        val bestMean = stats.strategyMeans.values.maxOrNull() ?: 0.0
+        stats.strategyMeans.entries.sortedByDescending { it.value }.map { (name, mean) ->
+            val std = stats.strategyStdDevs[name] ?: 0.0
+            val diff = mean - bestMean
+            StrategyRow(name, mean, std, diff, diff == 0.0)
+        }
+    }
+    val sortedRoles = remember(stats) {
+        stats.roleMetrics.entries.sortedByDescending { it.value.teamWinRate }.map { (id, s) ->
+            RoleRow(id.displayName, s.timesAssigned, s.avgEggDelta, s.teamWinRate)
+        }
+    }
+    val sortedMeowfiaCounts = remember(stats) { stats.meowfiaCountDistribution.keys.sorted() }
+    val sortedWinLoss = remember(stats) { stats.winLossPatterns.values.sortedByDescending { it.winnerCount }.take(10) }
+    val sortedAlignment = remember(stats) { stats.alignmentPatterns.values.sortedByDescending { it.winnerCount }.take(10) }
+    val solvBuckets = remember(stats) {
+        val b = IntArray(10)
+        for (pct in stats.solvabilityPercentages) b[(pct / 10).coerceIn(0, 9)]++
+        b.toList()
+    }
+
     LazyColumn(modifier = Modifier.weight(1f)) {
         // Overview
-        item {
+        item(key = "overview") {
             SummaryCard("Overview") {
                 StatRow("Games", "${stats.nGames}")
                 StatRow("Players", "${stats.nPlayers}")
@@ -590,8 +740,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
         }
 
         // Strategy Performance
-        item {
-            val bestMean = stats.strategyMeans.values.maxOrNull() ?: 0.0
+        item(key = "strategy_perf") {
             SummaryCard("Strategy Performance") {
                 // Header
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -601,23 +750,20 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                     Text("vs Best", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.width(52.dp), textAlign = TextAlign.End)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                for ((name, mean) in stats.strategyMeans.entries.sortedByDescending { it.value }) {
-                    val std = stats.strategyStdDevs[name] ?: 0.0
-                    val diff = mean - bestMean
-                    val isBest = diff == 0.0
+                for (row in sortedStrategies) {
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
                         Text(
-                            name,
-                            color = if (isBest) MeowfiaColors.Primary else MeowfiaColors.TextPrimary,
+                            row.name,
+                            color = if (row.isBest) MeowfiaColors.Primary else MeowfiaColors.TextPrimary,
                             fontSize = 12.sp,
-                            fontWeight = if (isBest) FontWeight.Bold else FontWeight.Normal,
+                            fontWeight = if (row.isBest) FontWeight.Bold else FontWeight.Normal,
                             modifier = Modifier.weight(1f)
                         )
-                        Text("%.1f".format(mean), color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.width(48.dp), textAlign = TextAlign.End)
-                        Text("%.1f".format(std), color = MeowfiaColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.width(40.dp), textAlign = TextAlign.End)
+                        Text("%.1f".format(row.mean), color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.width(48.dp), textAlign = TextAlign.End)
+                        Text("%.1f".format(row.std), color = MeowfiaColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.width(40.dp), textAlign = TextAlign.End)
                         Text(
-                            "%+.1f".format(diff),
-                            color = if (isBest) MeowfiaColors.Primary else MeowfiaColors.TextSecondary,
+                            "%+.1f".format(row.diff),
+                            color = if (row.isBest) MeowfiaColors.Primary else MeowfiaColors.TextSecondary,
                             fontSize = 12.sp,
                             modifier = Modifier.width(52.dp),
                             textAlign = TextAlign.End
@@ -653,18 +799,18 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                         Text("Win%", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    for ((roleId, roleStats) in stats.roleMetrics.entries.sortedByDescending { it.value.timesAssigned }) {
+                    for (row in sortedRoles) {
                         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
-                            Text(roleId.displayName, color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                            Text("${roleStats.timesAssigned}", color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.width(40.dp), textAlign = TextAlign.End)
+                            Text(row.name, color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                            Text("${row.assigned}", color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.width(40.dp), textAlign = TextAlign.End)
                             Text(
-                                "%+.1f".format(roleStats.avgEggDelta),
-                                color = if (roleStats.avgEggDelta > 0) MeowfiaColors.Farm else if (roleStats.avgEggDelta < 0) MeowfiaColors.Meowfia else MeowfiaColors.TextSecondary,
+                                "%+.1f".format(row.avgEgg),
+                                color = if (row.avgEgg > 0) MeowfiaColors.Farm else if (row.avgEgg < 0) MeowfiaColors.Meowfia else MeowfiaColors.TextSecondary,
                                 fontSize = 12.sp,
                                 modifier = Modifier.width(52.dp),
                                 textAlign = TextAlign.End
                             )
-                            Text("%.0f".format(roleStats.teamWinRate * 100), color = MeowfiaColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
+                            Text("%.0f".format(row.winRate * 100), color = MeowfiaColors.TextSecondary, fontSize = 12.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
                         }
                     }
                 }
@@ -698,7 +844,9 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                     Text(
                         "${"█".repeat(farmBar)}${"░".repeat(meowfiaBar)}",
                         color = MeowfiaColors.Farm,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
                     )
                     Text("  $farmPct%", color = MeowfiaColors.Farm, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
@@ -707,7 +855,9 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                     Text(
                         "${"░".repeat(farmBar)}${"█".repeat(meowfiaBar)}",
                         color = MeowfiaColors.Meowfia,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f)
                     )
                     Text("  $meowfiaPct%", color = MeowfiaColors.Meowfia, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
@@ -738,10 +888,11 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                                 "█".repeat(barLen),
                                 color = MeowfiaColors.Meowfia,
                                 fontSize = 12.sp,
-                                modifier = Modifier.width(100.dp)
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
                             )
                             Text(
-                                " $pct%  ($winStr)",
+                                " $pct% ($winStr)",
                                 color = MeowfiaColors.TextPrimary,
                                 fontSize = 11.sp
                             )
@@ -775,7 +926,8 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                                 "█".repeat(barLen),
                                 color = MeowfiaColors.Farm,
                                 fontSize = 12.sp,
-                                modifier = Modifier.width(100.dp)
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
                             )
                             Text(" $pct%", color = MeowfiaColors.TextPrimary, fontSize = 12.sp)
                         }
@@ -797,7 +949,8 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                                 "█".repeat(barLen),
                                 color = MeowfiaColors.Secondary,
                                 fontSize = 12.sp,
-                                modifier = Modifier.width(100.dp)
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
                             )
                             Text(" $pct%", color = MeowfiaColors.TextPrimary, fontSize = 12.sp)
                         }
@@ -813,16 +966,11 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                 SummaryCard("Solvability Distribution") {
                     StatRow("Avg Solvability", "%.1f%%".format(stats.avgSolvabilityPercent))
                     Spacer(modifier = Modifier.height(4.dp))
-                    val buckets = IntArray(10)
-                    for (pct in stats.solvabilityPercentages) {
-                        val idx = (pct / 10).coerceIn(0, 9)
-                        buckets[idx]++
-                    }
-                    val maxBucket = buckets.maxOrNull()?.coerceAtLeast(1) ?: 1
+                    val maxBucket = solvBuckets.maxOrNull()?.coerceAtLeast(1) ?: 1
                     for (i in 0 until 10) {
                         val lo = i * 10
                         val hi = lo + 10
-                        val barLen = (buckets[i] * 20 / maxBucket).coerceIn(0, 20)
+                        val barLen = (solvBuckets[i] * 20 / maxBucket).coerceIn(0, 20)
                         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
                             Text(
                                 "${lo}-${hi}%",
@@ -834,10 +982,11 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                                 "█".repeat(barLen),
                                 color = MeowfiaColors.Primary,
                                 fontSize = 11.sp,
-                                modifier = Modifier.width(130.dp)
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
                             )
                             Text(
-                                " ${buckets[i]}",
+                                " ${solvBuckets[i]}",
                                 color = MeowfiaColors.TextPrimary,
                                 fontSize = 11.sp
                             )
@@ -891,6 +1040,108 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
+        }
+
+        // Win/Loss Patterns
+        if (stats.winLossPatterns.isNotEmpty()) {
+            item {
+                PatternTable("Win/Loss Patterns", stats.winLossPatterns)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        // Alignment Patterns
+        if (stats.alignmentPatterns.isNotEmpty()) {
+            item {
+                PatternTable("Farm/Meowfia Patterns", stats.alignmentPatterns)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        // Hand Luck Correlation
+        item {
+            SummaryCard("Hand Luck vs Score") {
+                val corrStr = "%.3f".format(stats.handLuckCorrelation)
+                val verdict = when {
+                    stats.handLuckCorrelation > 0.3 -> "Strong — lucky hands win more"
+                    stats.handLuckCorrelation > 0.1 -> "Moderate — some luck advantage"
+                    stats.handLuckCorrelation > -0.1 -> "Negligible — skill matters more than card luck"
+                    else -> "Inverse — high cards don't help"
+                }
+                StatRow("Correlation", corrStr)
+                Text(verdict, color = MeowfiaColors.TextSecondary, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                // Luck buckets bar chart
+                val maxScore = stats.handLuckBuckets.maxOfOrNull { it.avgFinalScore }?.coerceAtLeast(1.0) ?: 1.0
+                for (bucket in stats.handLuckBuckets) {
+                    if (bucket.count == 0) continue
+                    val barLen = ((bucket.avgFinalScore / maxScore) * 15).toInt().coerceIn(0, 15)
+                    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = ComposeAlignment.CenterVertically) {
+                        Text(bucket.label, color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.width(72.dp))
+                        Text("%.1f avg".format(bucket.avgFinalScore), color = MeowfiaColors.TextPrimary, fontSize = 11.sp, modifier = Modifier.width(56.dp))
+                        Text("\u2588".repeat(barLen), color = MeowfiaColors.Primary, fontSize = 11.sp, maxLines = 1)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Record Facts
+        item {
+            val rf = stats.recordFacts
+            SummaryCard("Records") {
+                rf.highestFinalScore?.let {
+                    RecordRow("Highest final score", "${it.playerName}: ${it.value} pts")
+                }
+                rf.lowestFinalScore?.let {
+                    RecordRow("Lowest final score", "${it.playerName}: ${it.value} pts")
+                }
+                rf.mostPointsSingleRound?.let {
+                    RecordRow("Most points in a round", "${it.playerName}: +${it.value} pts (R${it.roundNum})")
+                }
+                rf.biggestLoss?.let {
+                    RecordRow("Biggest loss in a round", "${it.playerName}: ${it.value} pts (R${it.roundNum})")
+                }
+                rf.mostEggsGained?.let {
+                    RecordRow("Most eggs gained", "${it.playerName}: +${it.value} eggs (R${it.roundNum})")
+                }
+                rf.mostEggsLost?.let {
+                    RecordRow("Most eggs lost", "${it.playerName}: ${it.value} eggs (R${it.roundNum})")
+                }
+                rf.mostCardsBet?.let {
+                    RecordRow("Most cards thrown", "${it.playerName}: ${it.value} cards (R${it.roundNum})")
+                }
+                rf.highestCardsBetAgainstOne?.let {
+                    RecordRow("Most cards thrown at one player", "${it.value} cards at ${it.playerName} (R${it.roundNum})")
+                }
+                rf.biggestCatchUp?.let {
+                    RecordRow("Biggest catch-up", "${it.playerName}: +${it.value} pts from mid to end")
+                }
+                rf.bestRole?.let { RecordRow("Best role (win rate)", it) }
+                rf.worstRole?.let { RecordRow("Worst role (win rate)", it) }
+                rf.bestArchetype?.let { RecordRow("Best archetype", it) }
+                rf.bestWinLossPattern?.let { RecordRow("Best W/L pattern", it) }
+                rf.worstWinLossPattern?.let { RecordRow("Worst W/L pattern", it) }
+                rf.bestAlignmentPattern?.let { RecordRow("Best F/M pattern", it) }
+                rf.worstAlignmentPattern?.let { RecordRow("Worst F/M pattern", it) }
+                rf.mostRoleSwaps?.let {
+                    if (it.value > 0) RecordRow("Most role swaps in a round", "${it.value} swaps (R${it.roundNum})")
+                }
+                rf.mostConfused?.let {
+                    if (it.value > 0) RecordRow("Most confused in a round", "${it.value} players (R${it.roundNum})")
+                }
+                rf.mostHugged?.let {
+                    if (it.value > 0) RecordRow("Most hugged in a round", "${it.value} players (R${it.roundNum})")
+                }
+                rf.mostWinks?.let {
+                    if (it.value > 0) RecordRow("Most winks in a round", "${it.value} players (R${it.roundNum})")
+                }
+                RecordRow("Vote draws (ties)", "${rf.drawCount} rounds")
+                if (rf.roundsWithNoBuffers > 0) {
+                    RecordRow("Rounds with no default roles", "${rf.roundsWithNoBuffers}")
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 
@@ -1010,74 +1261,51 @@ private fun RoundDetailCard(
 ) {
     val vr = roundLog.votingResult
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MeowfiaColors.Surface),
-        border = BorderStroke(1.dp, MeowfiaColors.TextSecondary.copy(alpha = 0.3f))
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    "Round ${roundLog.roundNum}",
-                    color = MeowfiaColors.TextPrimary,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                if (vr != null) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Round header
+        Text(
+            "Round ${roundLog.roundNum}",
+            color = MeowfiaColors.Primary,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 4.dp)
+        )
+        SummaryCard("Summary") {
+            if (vr != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        text = "${vr.winningTeam.displayName} wins",
+                        "${vr.winningTeam.displayName} wins",
                         color = if (vr.winningTeam == GameAlignment.FARM) MeowfiaColors.Farm else MeowfiaColors.Meowfia,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
+                    roundLog.solvability?.let { solve ->
+                        val (label, sColor) = when (solve.solvability) {
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.SOLVED -> "SOLVED" to MeowfiaColors.Farm
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.NARROWED -> "NARROWED" to MeowfiaColors.Primary
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.COIN_FLIP -> "COIN FLIP" to MeowfiaColors.TextSecondary
+                        }
+                        Text(label, color = sColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
-
             if (roundLog.pool.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
-                Row {
-                    Text("Pool: ", color = MeowfiaColors.TextSecondary, fontSize = 12.sp)
-                    Text(
-                        roundLog.pool.joinToString(", ") { it.displayName },
-                        color = MeowfiaColors.TextPrimary,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
                 Text(
-                    "Meowfia: ${roundLog.meowfiaCount}",
-                    color = MeowfiaColors.Meowfia,
-                    fontSize = 12.sp
+                    "Pool: ${roundLog.pool.joinToString(", ") { it.displayName }}",
+                    color = MeowfiaColors.TextSecondary, fontSize = 12.sp
                 )
-                roundLog.solvability?.let { solve ->
-                    val (label, color) = when (solve.solvability) {
-                        com.meowfia.app.testing.sim.RoundSolver.Solvability.SOLVED ->
-                            "SOLVED" to MeowfiaColors.Farm
-                        com.meowfia.app.testing.sim.RoundSolver.Solvability.NARROWED ->
-                            "NARROWED" to MeowfiaColors.Primary
-                        com.meowfia.app.testing.sim.RoundSolver.Solvability.COIN_FLIP ->
-                            "COIN FLIP" to MeowfiaColors.TextSecondary
-                    }
-                    Text(
-                        text = label,
-                        color = color,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
+            Text("Meowfia count: ${roundLog.meowfiaCount}", color = MeowfiaColors.Meowfia, fontSize = 12.sp)
+        }
 
-            Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
+        // Assignments
+        RoundSubCard("Players") {
             for (a in roundLog.assignments) {
                 val name = strategies.getOrElse(a.playerId) { "P${a.playerId}" }
                 val alignColor = if (a.alignment == GameAlignment.FARM) MeowfiaColors.Farm else MeowfiaColors.Meowfia
@@ -1091,75 +1319,390 @@ private fun RoundDetailCard(
                 val isEliminated = vr?.eliminatedId == a.playerId
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 1.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     verticalAlignment = ComposeAlignment.CenterVertically
                 ) {
-                    RoleIcon(roleId = a.roleId, size = 20)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = name,
-                        color = MeowfiaColors.TextPrimary,
-                        fontSize = 13.sp,
-                        modifier = Modifier.width(120.dp)
-                    )
-                    Text(
-                        text = a.alignment.displayName.take(1),
-                        color = alignColor,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.width(16.dp)
-                    )
-                    Text(
-                        text = a.roleId.displayName,
-                        color = MeowfiaColors.Primary,
-                        fontSize = 12.sp,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = "${eggStr}e",
-                        color = MeowfiaColors.TextSecondary,
-                        fontSize = 12.sp,
-                        modifier = Modifier.width(28.dp),
-                        textAlign = TextAlign.End
-                    )
-                    if (isEliminated) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("X", color = MeowfiaColors.Secondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    RoleIcon(roleId = a.roleId, size = 28)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(verticalAlignment = ComposeAlignment.CenterVertically) {
+                            Text(name, color = MeowfiaColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                a.alignment.displayName,
+                                color = alignColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (isEliminated) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("ELIMINATED", color = MeowfiaColors.Secondary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Text(
+                            "${a.roleId.displayName} · ${eggStr} eggs",
+                            color = MeowfiaColors.TextSecondary,
+                            fontSize = 11.sp
+                        )
                     }
                 }
             }
+        }
 
-            if (vr != null) {
-                Spacer(modifier = Modifier.height(6.dp))
+        // Voting & Betting
+        if (vr != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            RoundSubCard("Voting & Betting") {
                 val eliminatedName = strategies.getOrElse(vr.eliminatedId) { "P${vr.eliminatedId}" }
                 Text(
                     "Eliminated: $eliminatedName (${vr.eliminatedAlignment.displayName})",
                     color = MeowfiaColors.Secondary,
-                    fontSize = 12.sp
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
+                Spacer(modifier = Modifier.height(8.dp))
 
-                val voteStr = vr.votes.entries
-                    .sortedByDescending { it.value }
-                    .joinToString("  ") { (pid, votes) ->
-                        "${strategies.getOrElse(pid) { "P$pid" }}:$votes"
+                for (a in roundLog.assignments) {
+                    val name = strategies.getOrElse(a.playerId) { "P${a.playerId}" }
+                    val thrown = vr.thrown[a.playerId] ?: emptyList()
+                    val kept = vr.kept[a.playerId] ?: emptyList()
+                    val targetId = vr.targets[a.playerId]
+                    val targetName = targetId?.let { strategies.getOrElse(it) { "P$it" } } ?: "?"
+                    val isWinner = a.alignment == vr.winningTeam
+                    val resultColor = if (isWinner) MeowfiaColors.Farm else MeowfiaColors.Secondary
+                    val resultTag = if (isWinner) "WON" else "LOST"
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MeowfiaColors.SurfaceElevated),
+                        border = BorderStroke(1.dp, resultColor.copy(alpha = 0.3f))
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = ComposeAlignment.CenterVertically
+                            ) {
+                                Text(name, color = MeowfiaColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(resultTag, color = resultColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text("Target: $targetName", color = MeowfiaColors.TextSecondary, fontSize = 11.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Threw ${thrown.size} cards", color = MeowfiaColors.TextSecondary, fontSize = 11.sp)
+                                    if (thrown.isNotEmpty()) {
+                                        Text(
+                                            thrown.joinToString(" ") { it.display },
+                                            color = MeowfiaColors.TextPrimary,
+                                            fontSize = 11.sp
+                                        )
+                                        Text("Value: ${thrown.sumOf { it.value }}", color = MeowfiaColors.TextSecondary, fontSize = 10.sp)
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Kept ${kept.size} cards", color = MeowfiaColors.TextSecondary, fontSize = 11.sp)
+                                    if (kept.isNotEmpty()) {
+                                        Text(
+                                            kept.joinToString(" ") { it.display },
+                                            color = MeowfiaColors.TextPrimary,
+                                            fontSize = 11.sp
+                                        )
+                                        Text("Value: ${kept.sumOf { it.value }}", color = MeowfiaColors.TextSecondary, fontSize = 10.sp)
+                                    }
+                                }
+                            }
+                        }
                     }
-                Text("Votes: $voteStr", color = MeowfiaColors.TextSecondary, fontSize = 11.sp)
+                }
             }
+        }
 
-            if (roundLog.postScores.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                val scoreStr = roundLog.postScores.mapIndexed { i, s ->
-                    "${strategies.getOrElse(i) { "P$i" }.take(3)}:$s"
-                }.joinToString("  ")
-                Text("Scores: $scoreStr", color = MeowfiaColors.TextSecondary, fontSize = 11.sp)
+        // Score changes
+        if (roundLog.postScores.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            RoundSubCard("Scores") {
+                for (i in roundLog.postScores.indices) {
+                    val name = strategies.getOrElse(i) { "P$i" }
+                    val postScore = roundLog.postScores[i]
+                    val preScore = roundLog.preScores.getOrElse(i) { 0 }
+                    val delta = postScore - preScore
+                    val deltaStr = if (delta >= 0) "+$delta" else "$delta"
+                    val deltaColor = when {
+                        delta > 0 -> MeowfiaColors.Farm
+                        delta < 0 -> MeowfiaColors.Secondary
+                        else -> MeowfiaColors.TextSecondary
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+                        verticalAlignment = ComposeAlignment.CenterVertically
+                    ) {
+                        Text(name, color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                        Text(
+                            "$preScore",
+                            color = MeowfiaColors.TextSecondary,
+                            fontSize = 12.sp,
+                            modifier = Modifier.width(36.dp),
+                            textAlign = TextAlign.End
+                        )
+                        Text(" → ", color = MeowfiaColors.TextSecondary, fontSize = 12.sp)
+                        Text(
+                            "$postScore",
+                            color = MeowfiaColors.TextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.width(36.dp),
+                            textAlign = TextAlign.End
+                        )
+                        Text(
+                            deltaStr,
+                            color = deltaColor,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.width(40.dp),
+                            textAlign = TextAlign.End
+                        )
+                    }
+                }
             }
         }
     }
 }
 
+@Composable
+private fun RoundSubCard(title: String, content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = MeowfiaColors.Surface),
+        border = BorderStroke(1.dp, MeowfiaColors.TextSecondary.copy(alpha = 0.2f))
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(title, color = MeowfiaColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(6.dp))
+            content()
+        }
+    }
+}
+
+// ── Scoring Settings ──
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ScoringSettingsSection(
+    startingHandSize: Int,
+    postRoundDraw: Int,
+    handCap: Int,
+    finalCardValue: Int,
+    minThrowPerRound: Int,
+    winThrownAction: WinThrownAction,
+    flatWinBonusPts: Int,
+    lossThrownAction: LossThrownAction,
+    flatLossPenaltyPts: Int,
+    consolation: Consolation,
+    wrongTargetPenalty: WrongTargetPenalty,
+    tieBreaker: TieBreaker,
+    onStartingHandSizeChange: (Int) -> Unit,
+    onPostRoundDrawChange: (Int) -> Unit,
+    onHandCapChange: (Int) -> Unit,
+    onFinalCardValueChange: (Int) -> Unit,
+    onMinThrowChange: (Int) -> Unit,
+    onWinThrownActionChange: (WinThrownAction) -> Unit,
+    onFlatWinBonusPtsChange: (Int) -> Unit,
+    onLossThrownActionChange: (LossThrownAction) -> Unit,
+    onFlatLossPenaltyPtsChange: (Int) -> Unit,
+    onConsolationChange: (Consolation) -> Unit,
+    onWrongTargetPenaltyChange: (WrongTargetPenalty) -> Unit,
+    onTieBreakerChange: (TieBreaker) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Text(
+        text = if (expanded) "▼ Scoring Rules" else "▶ Scoring Rules",
+        color = MeowfiaColors.Primary,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.clickable { expanded = !expanded }
+    )
+    AnimatedVisibility(visible = expanded) {
+        Column {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Hand & Draw
+            Text("Hand & Draw", color = MeowfiaColors.TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            SimConfigRow("Starting hand", startingHandSize, 1, 10,
+                onMinus = { onStartingHandSizeChange(startingHandSize - 1) },
+                onPlus = { onStartingHandSizeChange(startingHandSize + 1) })
+            Spacer(modifier = Modifier.height(4.dp))
+            SimConfigRow("Post-round draw", postRoundDraw, 0, 5,
+                onMinus = { onPostRoundDrawChange(postRoundDraw - 1) },
+                onPlus = { onPostRoundDrawChange(postRoundDraw + 1) })
+            Spacer(modifier = Modifier.height(4.dp))
+            SimConfigRow("Hand cap (0=none)", handCap, 0, 20,
+                onMinus = { onHandCapChange(if (handCap == 5) 0 else (handCap - 1).coerceAtLeast(5)) },
+                onPlus = { onHandCapChange(if (handCap == 0) 5 else (handCap + 1).coerceAtMost(20)) })
+            Spacer(modifier = Modifier.height(4.dp))
+            SimConfigRow("Final card value", finalCardValue, -2, 3,
+                onMinus = { onFinalCardValueChange(finalCardValue - 1) },
+                onPlus = { onFinalCardValueChange(finalCardValue + 1) })
+            Spacer(modifier = Modifier.height(4.dp))
+            SimConfigRow("Min throw/round", minThrowPerRound, 0, 5,
+                onMinus = { onMinThrowChange(minThrowPerRound - 1) },
+                onPlus = { onMinThrowChange(minThrowPerRound + 1) })
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Win Rules
+            Text("Win Rules", color = MeowfiaColors.TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Win thrown action", color = MeowfiaColors.TextPrimary, fontSize = 13.sp)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                WinThrownAction.entries.forEach { action ->
+                    FilterChip(
+                        selected = winThrownAction == action,
+                        onClick = { onWinThrownActionChange(action) },
+                        label = { Text(action.displayName, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MeowfiaColors.Primary.copy(alpha = 0.3f),
+                            selectedLabelColor = MeowfiaColors.Primary,
+                            containerColor = MeowfiaColors.Surface,
+                            labelColor = MeowfiaColors.TextSecondary
+                        )
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            SimConfigRow("Flat win bonus pts", flatWinBonusPts, 0, 5,
+                onMinus = { onFlatWinBonusPtsChange(flatWinBonusPts - 1) },
+                onPlus = { onFlatWinBonusPtsChange(flatWinBonusPts + 1) })
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Loss Rules
+            Text("Loss Rules", color = MeowfiaColors.TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Loss thrown action", color = MeowfiaColors.TextPrimary, fontSize = 13.sp)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                LossThrownAction.entries.forEach { action ->
+                    FilterChip(
+                        selected = lossThrownAction == action,
+                        onClick = { onLossThrownActionChange(action) },
+                        label = { Text(action.displayName, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MeowfiaColors.Secondary.copy(alpha = 0.3f),
+                            selectedLabelColor = MeowfiaColors.Secondary,
+                            containerColor = MeowfiaColors.Surface,
+                            labelColor = MeowfiaColors.TextSecondary
+                        )
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            SimConfigRow("Flat loss penalty pts", flatLossPenaltyPts, 0, 5,
+                onMinus = { onFlatLossPenaltyPtsChange(flatLossPenaltyPts - 1) },
+                onPlus = { onFlatLossPenaltyPtsChange(flatLossPenaltyPts + 1) })
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Consolation & Penalties
+            Text("Consolation & Penalties", color = MeowfiaColors.TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Consolation type", color = MeowfiaColors.TextPrimary, fontSize = 13.sp)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Consolation.entries.forEach { c ->
+                    FilterChip(
+                        selected = consolation == c,
+                        onClick = { onConsolationChange(c) },
+                        label = { Text(c.displayName, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MeowfiaColors.Primary.copy(alpha = 0.3f),
+                            selectedLabelColor = MeowfiaColors.Primary,
+                            containerColor = MeowfiaColors.Surface,
+                            labelColor = MeowfiaColors.TextSecondary
+                        )
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Wrong target penalty", color = MeowfiaColors.TextPrimary, fontSize = 13.sp)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                WrongTargetPenalty.entries.forEach { p ->
+                    FilterChip(
+                        selected = wrongTargetPenalty == p,
+                        onClick = { onWrongTargetPenaltyChange(p) },
+                        label = { Text(p.displayName, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MeowfiaColors.Secondary.copy(alpha = 0.3f),
+                            selectedLabelColor = MeowfiaColors.Secondary,
+                            containerColor = MeowfiaColors.Surface,
+                            labelColor = MeowfiaColors.TextSecondary
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Tie Breaking
+            Text("Tie Breaking", color = MeowfiaColors.TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                TieBreaker.entries.forEach { tb ->
+                    FilterChip(
+                        selected = tieBreaker == tb,
+                        onClick = { onTieBreakerChange(tb) },
+                        label = { Text(tb.displayName, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MeowfiaColors.Primary.copy(alpha = 0.3f),
+                            selectedLabelColor = MeowfiaColors.Primary,
+                            containerColor = MeowfiaColors.Surface,
+                            labelColor = MeowfiaColors.TextSecondary
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ── Patterns & Records ──
+
+@Composable
+private fun PatternTable(title: String, patterns: Map<String, com.meowfia.app.testing.analysis.WinLossPatternStats>) {
+    SummaryCard(title) {
+        val sorted = patterns.values.sortedByDescending { it.winnerCount }.take(10)
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Text("Pattern", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.weight(1f))
+            Text("Count", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
+            Text("Avg Pts", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.width(52.dp), textAlign = TextAlign.End)
+            Text("Won", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.width(36.dp), textAlign = TextAlign.End)
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        for (p in sorted) {
+            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
+                Text(p.pattern, color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                Text("${p.occurrences}", color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
+                Text("%.1f".format(p.avgFinalScore), color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.width(52.dp), textAlign = TextAlign.End)
+                Text("${p.winnerCount}", color = MeowfiaColors.Primary, fontSize = 12.sp, modifier = Modifier.width(36.dp), textAlign = TextAlign.End)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordRow(label: String, value: String) {
+    Column(modifier = Modifier.padding(vertical = 2.dp)) {
+        Text(label, color = MeowfiaColors.TextSecondary, fontSize = 11.sp)
+        Text(value, color = MeowfiaColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
 /** Smart step for game count: 1,2,3..10,20,30..100,200..1000 */
+// Pre-computed display data to avoid recomputation during scroll
+private data class StrategyRow(val name: String, val mean: Double, val std: Double, val diff: Double, val isBest: Boolean)
+private data class RoleRow(val name: String, val assigned: Int, val avgEgg: Double, val winRate: Double)
+
 private fun stepUp(current: Int): Int = when {
     current < 10 -> current + 1
     current < 100 -> current + 10

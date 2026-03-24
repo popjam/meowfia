@@ -15,8 +15,12 @@ data class SimRoundLog(
     var dawnReports: List<DawnReport> = emptyList(),
     var votingResult: SimVotingResolver.VotingResult? = null,
     var scoringEvents: List<SimVotingResolver.ScoringEvent> = emptyList(),
+    var preScores: List<Int> = emptyList(),
     var postScores: List<Int> = emptyList(),
     var visitGraph: Map<Int, Int> = emptyMap(),
     var confusedPlayers: Int = 0,
+    var huggedPlayers: Int = 0,
+    var winkPlayers: Int = 0,
+    var roleSwapCount: Int = 0,
     var solvability: RoundSolver.SolvabilityResult? = null
 )

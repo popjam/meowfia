@@ -8,6 +8,7 @@ data class SimGameResult(
     val config: SimConfig,
     val finalScores: List<Int>,
     val strategies: List<String>,
+    val playerNames: List<String> = emptyList(),
     val roundLogs: List<SimRoundLog>,
     val perRoundDeltas: List<List<Int>>,
     val roleAssignmentCounts: Map<RoleId, Int>,

@@ -314,9 +314,11 @@ class GameCoordinator(
      * Builds a detailed [PostRoundAnalysis] walkthrough of the completed round.
      * Must be called after [resolveNight] (requires a resolved context).
      */
-    fun getPostRoundAnalysis(): PostRoundAnalysis {
+    fun getPostRoundAnalysis(
+        botClaims: List<com.meowfia.app.bot.BotDayClaim> = emptyList()
+    ): PostRoundAnalysis {
         val ctx = resolvedContext ?: error("Night must be resolved before generating analysis")
-        return PostRoundAnalyzer.analyze(state, ctx, getWinningTeam())
+        return PostRoundAnalyzer.analyze(state, ctx, getWinningTeam(), botClaims)
     }
 
     // --- Queries ---

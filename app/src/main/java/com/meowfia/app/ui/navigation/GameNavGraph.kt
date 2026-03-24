@@ -357,7 +357,7 @@ fun GameNavGraph(navController: NavHostController) {
         }
 
         composable(MeowfiaRoute.PostRoundAnalysis.route) {
-            val analysis = remember { GameSession.coordinator.getPostRoundAnalysis() }
+            val analysis = remember { GameSession.coordinator.getPostRoundAnalysis(botClaims) }
             PostRoundAnalysisScreen(
                 analysis = analysis,
                 onBack = { navController.popBackStack() }
