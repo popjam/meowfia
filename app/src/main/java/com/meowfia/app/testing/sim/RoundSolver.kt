@@ -9,6 +9,7 @@ import com.meowfia.app.data.model.Player
 import com.meowfia.app.data.model.PlayerAssignment
 import com.meowfia.app.data.model.PoolCard
 import com.meowfia.app.data.model.RoleId
+import com.meowfia.app.data.registry.RoleRegistry
 import com.meowfia.app.engine.NightResolver
 import com.meowfia.app.util.RandomProvider
 
@@ -107,17 +108,17 @@ object RoundSolver {
         val eliminatedPct = if (totalCandidates > 0)
             (1.0 - consistentWorlds.toDouble() / totalCandidates) * 100 else 100.0
 
+        // SOLVED requires all consistent worlds to agree on the exact same Meowfia set.
+        val allWorldsAgree = consistentWorldList.isNotEmpty() &&
+            consistentWorldList.distinct().size == 1
+
         val solvability = when {
             consistentWorlds == 0 -> {
                 reasons.add("No consistent world found — someone's claims are impossible")
                 Solvability.SOLVED
             }
-            consistentWorlds == 1 -> {
-                reasons.add("Exactly one consistent Meowfia assignment exists")
-                Solvability.SOLVED
-            }
-            eliminatedPct >= 90 -> {
-                reasons.add("${cleared.size} player(s) cleared, ${suspects.size} remain as suspects")
+            allWorldsAgree -> {
+                reasons.add("All consistent worlds agree on the same Meowfia set")
                 Solvability.SOLVED
             }
             eliminatedPct > 0 -> {
@@ -143,8 +144,11 @@ object RoundSolver {
     /**
      * Check if a hypothetical Meowfia subset is consistent with all claims.
      * Farm players are assumed truthful; Meowfia players' claims are ignored.
-     * We simulate the egg flow using the Farm players' claimed roles and targets,
-     * then check if the resulting egg deltas match their claimed deltas.
+     *
+     * The solver's contract: a subset is consistent if there exists **any**
+     * plausible combination of (Meowfia role from pool) × (valid visit target)
+     * that explains what Farm players reported. This requires enumerating over
+     * possible Meowfia role assignments and visit targets.
      */
     private fun isConsistent(
         meowfiaSet: Set<Int>,
@@ -154,11 +158,9 @@ object RoundSolver {
         playerIds: List<Int>
     ): Boolean {
         // Step 1: Check role assignment feasibility
-        // Farm players' claimed roles must be assignable from the pool
         val farmClaims = claims.filter { it.key !in meowfiaSet }
         val claimedFarmRoles = farmClaims.values.map { it.claimedRole }
 
-        // Non-buffer roles can only be claimed once — unless Twinflower is in pool
         val hasTwinflower = RoleId.TWINFLOWER in pool
         if (!hasTwinflower) {
             val nonBufferCounts = claimedFarmRoles.filter { !it.isBuffer }.groupingBy { it }.eachCount()
@@ -169,25 +171,88 @@ object RoundSolver {
             }
         }
 
-        // Step 2: Simulate egg flow using the real engine
-        // Build a hypothetical game state where Farm players have their claimed roles
-        // and Meowfia players have House Cat (the buffer Meowfia role)
+        if (meowfiaSet.isEmpty()) {
+            // No Meowfia — just simulate directly
+            return simulationMatches(meowfiaSet, emptyMap(), emptyMap(), farmClaims, claims, pool, playerIds)
+        }
+
+        // Step 2: Collect candidate Meowfia roles from pool
+        val meowfiaRolesInPool = pool.filter { it.isMeowfiaAnimal }
+            .ifEmpty { listOf(RoleId.HOUSE_CAT) } // always have the buffer
+
+        // Step 3: Enumerate role assignments for the Meowfia set
+        val meowfiaIds = meowfiaSet.toList()
+
+        for (roleAssignment in assignMeowfiaRoles(meowfiaIds, meowfiaRolesInPool)) {
+            // Build hypothetical player list for this role assignment so
+            // getValidTargets can inspect alignments and roles
+            val hypotheticalPlayers = playerIds.map { id ->
+                val isMeowfia = id in meowfiaSet
+                val claim = claims[id]!!
+                Player(
+                    id = id,
+                    name = "P$id",
+                    alignment = if (isMeowfia) Alignment.MEOWFIA else Alignment.FARM,
+                    roleId = if (isMeowfia) (roleAssignment[id] ?: RoleId.HOUSE_CAT) else claim.claimedRole
+                )
+            }
+
+            // Step 4: Enumerate visit targets for each Meowfia player
+            for (visitAssignment in assignVisitTargets(meowfiaIds, hypotheticalPlayers, roleAssignment)) {
+                if (simulationMatches(meowfiaSet, roleAssignment, visitAssignment, farmClaims, claims, pool, playerIds)) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    /**
+     * Run the NightResolver simulation and check if computed Farm egg deltas
+     * match what Farm players claimed.
+     */
+    private fun simulationMatches(
+        meowfiaSet: Set<Int>,
+        roleAssignment: Map<Int, RoleId>,
+        visitAssignment: Map<Int, Int>,
+        farmClaims: Map<Int, ClaimData>,
+        allClaims: Map<Int, ClaimData>,
+        pool: List<RoleId>,
+        playerIds: List<Int>
+    ): Boolean {
         val players = playerIds.map { id ->
             val isMeowfia = id in meowfiaSet
-            val claim = claims[id]!!
+            val claim = allClaims[id]!!
             Player(
                 id = id,
                 name = "P$id",
                 alignment = if (isMeowfia) Alignment.MEOWFIA else Alignment.FARM,
-                roleId = if (isMeowfia) RoleId.HOUSE_CAT else claim.claimedRole
+                roleId = if (isMeowfia) (roleAssignment[id] ?: RoleId.HOUSE_CAT) else claim.claimedRole
             )
         }
 
-        // Build visit graph from claims (Farm players' claims are truth, Meowfia pick random)
+        // Build visit graph: Farm uses claimed targets, Meowfia uses enumerated targets
         val simVisitGraph = mutableMapOf<Int, Int?>()
         for (id in playerIds) {
-            val claim = claims[id]!!
-            simVisitGraph[id] = claim.claimedTargetId
+            if (id in meowfiaSet) {
+                simVisitGraph[id] = visitAssignment[id]
+            } else {
+                simVisitGraph[id] = allClaims[id]!!.claimedTargetId
+            }
+        }
+
+        // Build night actions — use explicit VisitPlayer for all known targets
+        // so the resolver doesn't roll random targets that differ from reality
+        val nightActions = playerIds.associateWith { id ->
+            val target = simVisitGraph[id]
+            val claim = allClaims[id]!!
+            when {
+                target != null -> NightAction.VisitPlayer(target)
+                claim.claimedRole == RoleId.BLACK_SWAN -> NightAction.VisitSelf
+                claim.claimedRole == RoleId.TURKEY -> NightAction.NoVisit
+                id in meowfiaSet -> NightAction.NoVisit // Meowfia with no target
+                else -> NightAction.NoVisit
+            }
         }
 
         val gameState = GameState(
@@ -195,16 +260,7 @@ object RoundSolver {
             players = players,
             pool = pool.map { PoolCard(it) },
             dealerSeat = 0,
-            nightActions = playerIds.associateWith { id ->
-                val claim = claims[id]!!
-                when {
-                    claim.claimedTargetId != null -> NightAction.VisitPlayer(claim.claimedTargetId)
-                    claim.claimedRole == RoleId.BLACK_SWAN -> NightAction.VisitSelf
-                    claim.claimedRole == RoleId.TURKEY -> NightAction.NoVisit
-                    claim.claimedRole in setOf(RoleId.MOSQUITO, RoleId.TIT) -> NightAction.VisitRandom
-                    else -> NightAction.NoVisit
-                }
-            },
+            nightActions = nightActions,
             nightResults = emptyMap(),
             dawnReports = emptyMap(),
             activeFlowers = emptyList(),
@@ -214,17 +270,81 @@ object RoundSolver {
             eliminatedPlayerId = null
         )
 
-        // Run the real night resolver
         val resolver = NightResolver(RandomProvider(0))
         val context = resolver.resolve(gameState)
 
-        // Step 3: Check if computed egg deltas match Farm players' claimed deltas
         for ((id, claim) in farmClaims) {
             val computedDelta = context.getClampedEggDelta(id)
             if (computedDelta != claim.claimedEggDelta) return false
         }
-
         return true
+    }
+
+    /**
+     * Generate every possible assignment of Meowfia roles to the Meowfia players.
+     * Each player gets one role from the pool (with replacement for HOUSE_CAT buffer).
+     */
+    private fun assignMeowfiaRoles(
+        meowfiaIds: List<Int>,
+        candidateRoles: List<RoleId>
+    ): List<Map<Int, RoleId>> {
+        val distinct = candidateRoles.distinct()
+        val results = mutableListOf<Map<Int, RoleId>>()
+
+        fun recurse(index: Int, current: Map<Int, RoleId>, usedNonBuffer: Set<RoleId>) {
+            if (index == meowfiaIds.size) {
+                results.add(current)
+                return
+            }
+            for (role in distinct) {
+                // Non-buffer roles can only be assigned once
+                if (!role.isBuffer && role in usedNonBuffer) continue
+                val newUsed = if (role.isBuffer) usedNonBuffer else usedNonBuffer + role
+                recurse(index + 1, current + (meowfiaIds[index] to role), newUsed)
+            }
+        }
+
+        recurse(0, emptyMap(), emptySet())
+        return results
+    }
+
+    /**
+     * Generate every possible visit-target assignment for Meowfia players.
+     * Uses [RoleRegistry] to query each role's [RoleHandler.getValidTargets],
+     * so targeting rules are defined once in the handler and shared with the solver.
+     */
+    private fun assignVisitTargets(
+        meowfiaIds: List<Int>,
+        allPlayers: List<Player>,
+        roleAssignment: Map<Int, RoleId>
+    ): List<Map<Int, Int>> {
+        val results = mutableListOf<Map<Int, Int>>()
+
+        fun validTargetsFor(playerId: Int): List<Int> {
+            val role = roleAssignment[playerId] ?: RoleId.HOUSE_CAT
+            val handler = RoleRegistry.get(role)
+            val actor = allPlayers.find { it.id == playerId } ?: return emptyList()
+            return handler.getValidTargets(actor, allPlayers).map { it.id }
+        }
+
+        fun recurse(index: Int, current: Map<Int, Int>) {
+            if (index == meowfiaIds.size) {
+                results.add(current)
+                return
+            }
+            val id = meowfiaIds[index]
+            val targets = validTargetsFor(id)
+            if (targets.isEmpty()) {
+                recurse(index + 1, current)
+                return
+            }
+            for (target in targets) {
+                recurse(index + 1, current + (id to target))
+            }
+        }
+
+        recurse(0, emptyMap())
+        return results
     }
 
     /** Find obvious claim conflicts (duplicate non-buffer roles, roles not in pool). */

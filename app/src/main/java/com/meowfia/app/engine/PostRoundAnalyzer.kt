@@ -228,24 +228,32 @@ object PostRoundAnalyzer {
         }
 
         val solvability = try {
-            if (meowCount > farmCount) {
-                // Meowfia majority — solvability doesn't apply
+            if (meowCount > farmCount || farmCount == meowCount) {
+                // Meowfia majority or even split — solvability doesn't apply
+                val reason = if (meowCount > farmCount)
+                    "Meowfia outnumbers Farm ($meowCount vs $farmCount) this round. " +
+                        "The cats control the vote, so deduction from Farm's perspective doesn't matter — " +
+                        "the Meowfia just need to coordinate to eliminate a Farm player."
+                else
+                    "Teams are evenly split ($farmCount each) this round. " +
+                        "With equal numbers, Meowfia can force a tie and the vote dynamic breaks down — " +
+                        "deduction from public information is not meaningful."
+                val skipReason = if (meowCount > farmCount)
+                    "Meowfia majority ($meowCount Meowfia, $farmCount Farm) — analysis skipped"
+                else
+                    "Even split ($farmCount each) — analysis skipped"
                 SolvabilityAnalysis(
                     verdict = "N/A",
-                    verdictExplanation = "Meowfia outnumbers Farm ($meowCount vs $farmCount) this round. " +
-                        "The cats control the vote, so deduction from Farm's perspective doesn't matter — " +
-                        "the Meowfia just need to coordinate to eliminate a Farm player.",
+                    verdictExplanation = reason,
                     suspects = emptyList(),
                     cleared = emptyList(),
                     consistentWorlds = 0,
                     totalCandidates = 0,
-                    reasons = listOf("Meowfia majority ($meowCount Meowfia, $farmCount Farm) — analysis skipped"),
+                    reasons = listOf(skipReason),
                     playerClaims = playerClaimSummaries,
                     worldDescriptions = emptyList()
                 )
             } else {
-                val isEvenSplit = farmCount == meowCount
-
                 // Build claims from what players actually said, not their real roles
                 val claims = players.associate { player ->
                     val botClaim = botClaimMap[player.id]
@@ -292,16 +300,13 @@ object PostRoundAnalyzer {
                 )
                 val actualMeowfia = players.filter { it.alignment == Alignment.MEOWFIA }.map { it.id }.toSet()
 
-                val splitNote = if (isEvenSplit) " Note: teams are evenly split ($farmCount each), " +
-                    "so both sides are equally trying to eliminate the other. This analysis assumes Farm's perspective." else ""
-
                 val verdictExplanation = when (result.solvability) {
                     RoundSolver.Solvability.SOLVED ->
-                        "Based on what everyone claimed, there's only one possible explanation for who the Meowfia are. A careful player could figure it out.$splitNote"
+                        "Based on what everyone claimed, there's only one possible explanation for who the Meowfia are. A careful player could figure it out."
                     RoundSolver.Solvability.NARROWED ->
-                        "Some players can be ruled out as Meowfia based on the claims, but there are still multiple possibilities. The group has useful information but can't be certain.$splitNote"
+                        "Some players can be ruled out as Meowfia based on the claims, but there are still multiple possibilities. The group has useful information but can't be certain."
                     RoundSolver.Solvability.COIN_FLIP ->
-                        "Everyone's claims are consistent with many different Meowfia combinations. There's no way to narrow it down from public information alone — it's a guessing game.$splitNote"
+                        "Everyone's claims are consistent with many different Meowfia combinations. There's no way to narrow it down from public information alone — it's a guessing game."
                 }
 
                 val worldDescriptions = result.consistentWorldDetails.map { meowfiaSet ->

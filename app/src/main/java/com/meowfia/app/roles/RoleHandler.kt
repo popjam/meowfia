@@ -48,4 +48,24 @@ interface RoleHandler {
      * Defaults to 0..0 (most roles don't give eggs to self).
      */
     fun getSelfEggRange(): IntRange = 0..0
+
+    /**
+     * Returns the list of valid visit targets for this role, derived from [getNightPrompt].
+     * Used by [com.meowfia.app.testing.sim.RoundSolver] to enumerate possible worlds
+     * without duplicating targeting logic.
+     *
+     * - [NightPrompt.PickPlayer]: all other players (or including self if `!excludeSelf`)
+     * - [NightPrompt.SelfVisit]: only the player themselves
+     * - [NightPrompt.Automatic]: all other players (target is chosen randomly at runtime)
+     */
+    fun getValidTargets(player: Player, allPlayers: List<Player>): List<Player> {
+        return when (val prompt = getNightPrompt(player, allPlayers)) {
+            is NightPrompt.PickPlayer -> {
+                if (prompt.excludeSelf) allPlayers.filter { it.id != player.id }
+                else allPlayers
+            }
+            is NightPrompt.SelfVisit -> listOf(player)
+            is NightPrompt.Automatic -> allPlayers.filter { it.id != player.id }
+        }
+    }
 }
