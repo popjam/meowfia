@@ -19,7 +19,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Visit yourself every night and learn your role. If you are still Black Swan, lay an egg in your nest.
 
 > **Ugly Duckling**
-> You appear as Meowfia to investigators. Visit a player and steal 2 eggs from their nest.
+> You appear as Meowfia to investigators. Visit a player and steal 1 egg from their nest.
 
 > **Kookaburra**
 > Visit a player. Learn their role and lay an egg in their nest. If anyone visits you, you will be confused.

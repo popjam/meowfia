@@ -29,8 +29,8 @@ class LovebirdHandler : RoleHandler {
 
         val visitTarget = context.getVisitTargetOf(target.id)
         if (visitTarget != null) {
-            val targetAlignment = context.getCurrentAlignment(target.id)
-            val visitTargetAlignment = context.getCurrentAlignment(visitTarget.id)
+            val targetAlignment = context.getApparentAlignment(target.id)
+            val visitTargetAlignment = context.getApparentAlignment(visitTarget.id)
             if (targetAlignment == visitTargetAlignment) {
                 context.addEggs(actor.id, 1)
                 context.log("${actor.name} (Lovebird) checks ${target.name} and ${visitTarget.name} — same alignment. Egg gained.")

@@ -30,7 +30,7 @@ class BlindHawkHandler : RoleHandler {
 
         val visitTarget = context.getVisitTargetOf(target.id)
         if (visitTarget != null) {
-            val alignment = context.getCurrentAlignment(visitTarget.id)
+            val alignment = context.getApparentAlignment(visitTarget.id)
             if (alignment == Alignment.MEOWFIA) {
                 context.addEggs(actor.id, 1)
                 context.log("${actor.name} (Blind Hawk) investigates ${target.name}'s target ${visitTarget.name} — MEOWFIA. Egg gained.")

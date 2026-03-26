@@ -29,6 +29,7 @@ object RoleResolutionConfig {
         RoleId.MOSQUITO to 30,
         RoleId.TIT to 30,
         RoleId.MAGPIE to 30,
+        RoleId.UGLY_DUCKLING to 30,
         RoleId.HOUSE_CAT to 40,
         RoleId.HAWK to 50,
         RoleId.OWL to 50,

@@ -823,6 +823,16 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                 HealthRow("Solved", "%.1f%%".format(stats.solvedRate * 100), stats.solvedRate < 0.5)
                 StatRow("Actionable", "%.1f%%".format(stats.actionableRate * 100))
                 StatRow("Narrowed", "%.1f%%".format(stats.narrowedRate * 100))
+                if (stats.narrowedBySuspectCount.isNotEmpty()) {
+                    for ((count, rate) in stats.narrowedBySuspectCount.toSortedMap()) {
+                        val label = when (count) {
+                            0 -> "  → 0 suspects"
+                            1 -> "  → 1 suspect"
+                            else -> "  → $count suspects"
+                        }
+                        StatRow(label, "%.1f%%".format(rate * 100))
+                    }
+                }
                 StatRow("Could Be Anyone", "%.1f%%".format(stats.coinFlipRate * 100))
                 if (stats.avgSuspectsWhenNarrowed > 0) {
                     StatRow("Avg Suspects (narrowed)", "%.1f".format(stats.avgSuspectsWhenNarrowed))
@@ -1120,10 +1130,10 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
                 rf.bestRole?.let { RecordRow("Best role (win rate)", it) }
                 rf.worstRole?.let { RecordRow("Worst role (win rate)", it) }
                 rf.bestArchetype?.let { RecordRow("Best archetype", it) }
-                rf.bestWinLossPattern?.let { RecordRow("Best W/L pattern", it) }
-                rf.worstWinLossPattern?.let { RecordRow("Worst W/L pattern", it) }
-                rf.bestAlignmentPattern?.let { RecordRow("Best F/M pattern", it) }
-                rf.worstAlignmentPattern?.let { RecordRow("Worst F/M pattern", it) }
+                rf.bestWinLossPattern?.let { RecordRow("Highest win rate W/L", it) }
+                rf.worstWinLossPattern?.let { RecordRow("Lowest win rate W/L", it) }
+                rf.bestAlignmentPattern?.let { RecordRow("Highest win rate F/M", it) }
+                rf.worstAlignmentPattern?.let { RecordRow("Lowest win rate F/M", it) }
                 rf.mostRoleSwaps?.let {
                     if (it.value > 0) RecordRow("Most role swaps in a round", "${it.value} swaps (R${it.roundNum})")
                 }
@@ -1673,20 +1683,23 @@ private fun ScoringSettingsSection(
 @Composable
 private fun PatternTable(title: String, patterns: Map<String, com.meowfia.app.testing.analysis.WinLossPatternStats>) {
     SummaryCard(title) {
-        val sorted = patterns.values.sortedByDescending { it.winnerCount }.take(10)
+        val sorted = patterns.values
+            .sortedByDescending { if (it.occurrences > 0) it.winnerCount.toDouble() / it.occurrences else 0.0 }
+            .take(10)
         Row(modifier = Modifier.fillMaxWidth()) {
             Text("Pattern", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.weight(1f))
             Text("Count", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
             Text("Avg Pts", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.width(52.dp), textAlign = TextAlign.End)
-            Text("Won", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.width(36.dp), textAlign = TextAlign.End)
+            Text("Win %", color = MeowfiaColors.TextSecondary, fontSize = 11.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
         }
         Spacer(modifier = Modifier.height(4.dp))
         for (p in sorted) {
+            val winPct = if (p.occurrences > 0) p.winnerCount * 100.0 / p.occurrences else 0.0
             Row(modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
                 Text(p.pattern, color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.weight(1f))
                 Text("${p.occurrences}", color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
                 Text("%.1f".format(p.avgFinalScore), color = MeowfiaColors.TextPrimary, fontSize = 12.sp, modifier = Modifier.width(52.dp), textAlign = TextAlign.End)
-                Text("${p.winnerCount}", color = MeowfiaColors.Primary, fontSize = 12.sp, modifier = Modifier.width(36.dp), textAlign = TextAlign.End)
+                Text("%.0f%%".format(winPct), color = MeowfiaColors.Primary, fontSize = 12.sp, modifier = Modifier.width(44.dp), textAlign = TextAlign.End)
             }
         }
     }

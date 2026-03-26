@@ -187,6 +187,10 @@ object BalanceMetrics {
         val avgSuspectsWhenNarrowed = if (narrowedResults.isNotEmpty()) {
             narrowedResults.map { it.suspects.size.toDouble() }.average()
         } else 0.0
+        val narrowedBySuspectCount = if (narrowedResults.isNotEmpty()) {
+            narrowedResults.groupingBy { it.suspects.size }.eachCount()
+                .mapValues { (_, count) -> count.toDouble() / solvabilityTotal }
+        } else emptyMap()
 
         // Solvability percentages from all rounds
         val solvabilityPercentages = allSolvability
@@ -488,6 +492,7 @@ object BalanceMetrics {
             narrowedRate = narrowedRate,
             coinFlipRate = coinFlipRate,
             avgSuspectsWhenNarrowed = avgSuspectsWhenNarrowed,
+            narrowedBySuspectCount = narrowedBySuspectCount,
             solvabilityPercentages = solvabilityPercentages,
             avgSolvabilityPercent = avgSolvabilityPercent,
             meowfiaCountDistribution = meowfiaCountBuckets,

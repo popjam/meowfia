@@ -8,6 +8,7 @@ import com.meowfia.app.data.model.PoolCard
 import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.data.model.RoleModification
 import com.meowfia.app.data.model.StatusEffect
+import com.meowfia.app.data.registry.RoleRegistry
 import com.meowfia.app.util.RandomProvider
 
 /**
@@ -141,6 +142,21 @@ class ResolutionContext(
             }
         }
         return alignments[playerId] ?: players.first { it.id == playerId }.alignment
+    }
+
+    /**
+     * Returns how a player's alignment **appears** to investigators.
+     * Accounts for role-specific deception (e.g. Ugly Duckling appears Meowfia)
+     * on top of any alignment modifications (e.g. Top Cat flips).
+     */
+    fun getApparentAlignment(playerId: Int): Alignment {
+        val currentRole = getCurrentRole(playerId)
+        val handler = RoleRegistry.get(currentRole)
+        val player = players.first { it.id == playerId }
+        // Build a snapshot reflecting current modifications
+        val currentAlignment = getCurrentAlignment(playerId)
+        val snapshotPlayer = player.copy(alignment = currentAlignment, roleId = currentRole)
+        return handler.getApparentAlignment(snapshotPlayer)
     }
 
     /** Replays all modifications to compute the final role for each player. */

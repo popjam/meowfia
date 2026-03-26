@@ -21,6 +21,7 @@ import com.meowfia.app.roles.farm.KookaburraHandler
 import com.meowfia.app.roles.farm.MagpieHandler
 import com.meowfia.app.roles.farm.KoalaHandler
 import com.meowfia.app.roles.farm.SheepdogHandler
+import com.meowfia.app.roles.farm.UglyDucklingHandler
 import com.meowfia.app.roles.meowfia.HouseCatHandler
 import com.meowfia.app.roles.meowfia.TopCatHandler
 import com.meowfia.app.roles.meowfia.MouserHandler
@@ -66,5 +67,6 @@ object RoleRegistry {
         register(SheepdogHandler())
         register(MouserHandler())
         register(FlooferHandler())
+        register(UglyDucklingHandler())
     }
 }

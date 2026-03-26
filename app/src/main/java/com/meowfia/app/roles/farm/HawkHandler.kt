@@ -28,7 +28,7 @@ class HawkHandler : RoleHandler {
         }
         if (target == null) return
 
-        val targetAlignment = context.getCurrentAlignment(target.id)
+        val targetAlignment = context.getApparentAlignment(target.id)
         if (targetAlignment == Alignment.MEOWFIA) {
             context.addEggs(actor.id, 1)
             context.log("${actor.name} (Hawk) investigates ${target.name} — MEOWFIA. Egg gained.")

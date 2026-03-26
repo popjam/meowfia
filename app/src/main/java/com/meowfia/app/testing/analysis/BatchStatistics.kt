@@ -114,6 +114,8 @@ data class BatchStatistics(
     val narrowedRate: Double,
     val coinFlipRate: Double,
     val avgSuspectsWhenNarrowed: Double,
+    /** Narrowed breakdown: % of rounds narrowed to exactly N suspects (1-indexed). */
+    val narrowedBySuspectCount: Map<Int, Double> = emptyMap(),
 
     // Solvability distribution
     val solvabilityPercentages: List<Int> = emptyList(),
