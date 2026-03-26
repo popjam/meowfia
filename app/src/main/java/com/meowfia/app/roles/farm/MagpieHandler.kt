@@ -14,6 +14,9 @@ class MagpieHandler : RoleHandler {
     override fun getNightPrompt(player: Player, allPlayers: List<Player>) =
         NightPrompt.Automatic("The Magpie learns an animal at night. Three random players receive eggs — one is that animal.")
 
+    override fun getValidTargets(player: Player, allPlayers: List<Player>): List<Player> =
+        emptyList() // Magpie doesn't visit — targets are chosen internally
+
     override fun resolve(
         actor: Player,
         target: Player?,

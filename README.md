@@ -66,7 +66,7 @@ The v1 app ships with 11 roles:
 | Role | Alignment | Night Action |
 |------|-----------|--------------|
 | Pigeon | Farm (buffer) | Visit a player, lay an egg in their nest |
-| House Cat | Meowfia (buffer) | Visit a player, steal an egg, learn their role and who they visited |
+| House Cat | Meowfia (buffer) | Visit a player. Learn their role and who they visited. |
 | Hawk | Farm | Investigate a player — if Meowfia, gain an egg |
 | Owl | Farm | Learn which animals visited your target; if none visited, lay an egg |
 | Eagle | Farm | Gain eggs equal to the number of visitors your target received |

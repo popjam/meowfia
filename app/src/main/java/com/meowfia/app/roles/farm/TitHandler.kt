@@ -1,5 +1,6 @@
 package com.meowfia.app.roles.farm
 
+import com.meowfia.app.data.model.Alignment
 import com.meowfia.app.data.model.GameState
 import com.meowfia.app.data.model.Player
 import com.meowfia.app.data.model.RoleId
@@ -13,6 +14,9 @@ class TitHandler : RoleHandler {
 
     override fun getNightPrompt(player: Player, allPlayers: List<Player>) =
         NightPrompt.Automatic("You visit a random Meowfia player and lay an egg in their nest.")
+
+    override fun getValidTargets(player: Player, allPlayers: List<Player>): List<Player> =
+        allPlayers.filter { it.id != player.id && it.alignment == Alignment.MEOWFIA }
 
     override fun resolve(
         actor: Player,
