@@ -40,6 +40,13 @@ data class SimGameResult(
         return results.count { it.solvability == RoundSolver.Solvability.SOLVED }.toDouble() / results.size
     }
 
+    /** Fraction of rounds where at least one Meowfia can be identified. */
+    val actionableRate: Double get() {
+        val results = roundLogs.mapNotNull { it.solvability }
+        if (results.isEmpty()) return 0.0
+        return results.count { it.solvability == RoundSolver.Solvability.ACTIONABLE }.toDouble() / results.size
+    }
+
     /** Fraction of rounds where suspects could be narrowed but not fully solved. */
     val narrowedRate: Double get() {
         val results = roundLogs.mapNotNull { it.solvability }
@@ -47,7 +54,7 @@ data class SimGameResult(
         return results.count { it.solvability == RoundSolver.Solvability.NARROWED }.toDouble() / results.size
     }
 
-    /** Fraction of rounds that were effectively a coin flip. */
+    /** Fraction of rounds that could be anyone. */
     val coinFlipRate: Double get() {
         val results = roundLogs.mapNotNull { it.solvability }
         if (results.isEmpty()) return 0.0

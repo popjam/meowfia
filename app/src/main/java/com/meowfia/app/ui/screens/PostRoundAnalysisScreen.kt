@@ -375,9 +375,9 @@ fun PostRoundAnalysisScreen(
             // --- Section 12: Solvability ---
             if (analysis.solvability != null) {
                 val solv = analysis.solvability
-                val verdictColor = when (solv.verdict) {
-                    "SOLVED" -> MeowfiaColors.Farm
-                    "NARROWED" -> MeowfiaColors.Primary
+                val verdictColor = when {
+                    solv.verdict == "SOLVED" || solv.verdict == "ACTIONABLE" -> MeowfiaColors.Farm
+                    solv.verdict.contains("SUSPECT") -> MeowfiaColors.Primary
                     else -> MeowfiaColors.TextSecondary
                 }
 

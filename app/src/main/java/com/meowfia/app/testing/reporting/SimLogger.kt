@@ -103,11 +103,7 @@ class SimLogger(private val verbosity: Verbosity) {
 
     fun solvability(result: RoundSolver.SolvabilityResult) {
         if (verbosity.ordinal < Verbosity.SUMMARY.ordinal) return
-        val tag = when (result.solvability) {
-            RoundSolver.Solvability.SOLVED -> "SOLVED"
-            RoundSolver.Solvability.NARROWED -> "NARROWED"
-            RoundSolver.Solvability.COIN_FLIP -> "COIN FLIP"
-        }
+        val tag = result.verdictLabel
         buffer.appendLine("  Deducibility: $tag (${result.consistentWorlds}/${result.totalCandidates} consistent worlds)")
         if (result.cleared.isNotEmpty()) {
             buffer.appendLine("    Cleared: ${result.cleared.joinToString()}")

@@ -25,6 +25,10 @@ object RoundSolver {
     enum class Solvability {
         /** Meowfia can be identified with certainty from public info. */
         SOLVED,
+        /** Players can take the correct action: either all worlds agree there
+         *  are 0 Meowfia (vote nobody), or the 0-Meowfia world is inconsistent
+         *  and at least one player is Meowfia in every consistent world. */
+        ACTIONABLE,
         /** Suspect list is smaller than random chance would give. */
         NARROWED,
         /** No useful deduction possible — effectively a coin flip. */
@@ -37,6 +41,9 @@ object RoundSolver {
         val suspects: Set<Int>,
         /** Player IDs that are never Meowfia in any consistent world. */
         val cleared: Set<Int>,
+        /** Player IDs that are Meowfia in EVERY consistent world.
+         *  If non-empty, Farm can safely eliminate any of these players. */
+        val guaranteedMeowfia: Set<Int> = emptySet(),
         /** Number of consistent Meowfia subsets found. */
         val consistentWorlds: Int,
         /** Total candidate subsets evaluated. */
@@ -49,7 +56,25 @@ object RoundSolver {
         val suspicionRatings: Map<Int, Float> = emptyMap(),
         /** Each consistent world as a set of Meowfia player IDs. */
         val consistentWorldDetails: List<Set<Int>> = emptyList()
-    )
+    ) {
+        /** Human-readable verdict label with suspect count detail. */
+        val verdictLabel: String get() {
+            val zeroMeowfiaConsistent = consistentWorldDetails.any { it.isEmpty() }
+            return when (solvability) {
+                Solvability.SOLVED -> "SOLVED"
+                Solvability.ACTIONABLE -> "ACTIONABLE"
+                Solvability.NARROWED -> {
+                    val suffix = if (zeroMeowfiaConsistent) " OR NONE" else ""
+                    when {
+                        suspects.isEmpty() -> "NO SUSPECTS"
+                        suspects.size == 1 -> "1 SUSPECT$suffix"
+                        else -> "${suspects.size} SUSPECTS$suffix"
+                    }
+                }
+                Solvability.COIN_FLIP -> "COULD BE ANYONE"
+            }
+        }
+    }
 
     /**
      * Analyze a round by trying every possible Meowfia subset and simulating
@@ -207,6 +232,25 @@ object RoundSolver {
         val allWorldsAgree = consistentWorldList.isNotEmpty() &&
             consistentWorldList.distinct().size == 1
 
+        // Guaranteed Meowfia: players who are Meowfia in EVERY consistent world.
+        // If the 0-Meowfia world is consistent, no one can be guaranteed Meowfia.
+        val zeroMeowfiaConsistent = consistentWorldList.any { it.isEmpty() }
+        val nonEmptyWorlds = consistentWorldList.filter { it.isNotEmpty() }
+        val guaranteedMeowfia = if (consistentWorldList.isNotEmpty() && !zeroMeowfiaConsistent && nonEmptyWorlds.isNotEmpty()) {
+            // A player is guaranteed Meowfia if they appear in every consistent world
+            playerIds.filter { pid -> consistentWorldList.all { pid in it } }.toSet()
+        } else {
+            emptySet()
+        }
+
+        // ACTIONABLE means players can take the correct action:
+        // - All consistent worlds are 0-Meowfia → vote nobody
+        // - OR the 0-Meowfia world is impossible AND at least one player is
+        //   guaranteed Meowfia → eliminate them
+        val allWorldsZeroMeowfia = consistentWorldList.isNotEmpty() &&
+            consistentWorldList.all { it.isEmpty() }
+        val canAct = allWorldsZeroMeowfia || guaranteedMeowfia.isNotEmpty()
+
         val solvability = when {
             consistentWorlds == 0 -> {
                 if (suspects.size <= meowfiaCount + 1 && suspects.size < playerIds.size) {
@@ -220,6 +264,15 @@ object RoundSolver {
             allWorldsAgree -> {
                 reasons.add("All consistent worlds agree on the same Meowfia set")
                 Solvability.SOLVED
+            }
+            canAct -> {
+                if (allWorldsZeroMeowfia) {
+                    reasons.add("All consistent worlds have 0 Meowfia — safe to vote nobody")
+                } else {
+                    val names = guaranteedMeowfia.mapNotNull { id -> names[id] }
+                    reasons.add("${names.joinToString(", ")} must be Meowfia in every consistent world — safe to eliminate")
+                }
+                Solvability.ACTIONABLE
             }
             eliminatedPct > 0 -> {
                 reasons.add("${cleared.size} player(s) cleared, ${suspects.size} remain as suspects")
@@ -257,6 +310,7 @@ object RoundSolver {
             solvability = solvability,
             suspects = suspects,
             cleared = cleared,
+            guaranteedMeowfia = guaranteedMeowfia,
             consistentWorlds = consistentWorlds,
             totalCandidates = totalCandidates,
             reasons = reasons,

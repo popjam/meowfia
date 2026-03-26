@@ -110,6 +110,7 @@ data class BatchStatistics(
 
     // Deducibility
     val solvedRate: Double,
+    val actionableRate: Double = 0.0,
     val narrowedRate: Double,
     val coinFlipRate: Double,
     val avgSuspectsWhenNarrowed: Double,

@@ -180,6 +180,7 @@ object BalanceMetrics {
         }
         val solvabilityTotal = allSolvability.size.coerceAtLeast(1)
         val solvedRate = allSolvability.count { it.solvability == RoundSolver.Solvability.SOLVED }.toDouble() / solvabilityTotal
+        val actionableRate = allSolvability.count { it.solvability == RoundSolver.Solvability.ACTIONABLE }.toDouble() / solvabilityTotal
         val narrowedRate = allSolvability.count { it.solvability == RoundSolver.Solvability.NARROWED }.toDouble() / solvabilityTotal
         val coinFlipRate = allSolvability.count { it.solvability == RoundSolver.Solvability.COIN_FLIP }.toDouble() / solvabilityTotal
         val narrowedResults = allSolvability.filter { it.solvability == RoundSolver.Solvability.NARROWED }
@@ -483,6 +484,7 @@ object BalanceMetrics {
             unanimousVoteRate = unanimousVoteRate,
             comebackFrequency = comebackFrequency,
             solvedRate = solvedRate,
+            actionableRate = actionableRate,
             narrowedRate = narrowedRate,
             coinFlipRate = coinFlipRate,
             avgSuspectsWhenNarrowed = avgSuspectsWhenNarrowed,

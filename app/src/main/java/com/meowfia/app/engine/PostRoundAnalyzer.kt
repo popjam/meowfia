@@ -308,10 +308,20 @@ object PostRoundAnalyzer {
                         "Someone's claims are impossible — no combination of Meowfia assignments can explain what everyone said. At least one player is definitely lying, but we can't determine exactly who from the claims alone."
                     result.solvability == RoundSolver.Solvability.SOLVED ->
                         "Based on what everyone claimed, there's only one possible explanation for who the Meowfia are. A careful player could figure it out."
-                    result.solvability == RoundSolver.Solvability.NARROWED ->
-                        "Some players can be ruled out as Meowfia based on the claims, but there are still multiple possibilities. The group has useful information but can't be certain."
+                    result.solvability == RoundSolver.Solvability.ACTIONABLE -> {
+                        if (result.guaranteedMeowfia.isNotEmpty()) {
+                            val names = result.guaranteedMeowfia.mapNotNull { id -> players.find { it.id == id }?.name }
+                            "The full Meowfia set isn't certain, but ${names.joinToString(" and ")} must be Meowfia in every possible scenario. Farm can safely eliminate them."
+                        } else {
+                            "Every possible explanation says there are no Meowfia this round. Farm should vote to eliminate nobody."
+                        }
+                    }
+                    result.solvability == RoundSolver.Solvability.NARROWED -> {
+                        val suspectCount = result.suspects.size
+                        "Some players can be ruled out as Meowfia based on the claims, but $suspectCount player${if (suspectCount != 1) "s" else ""} remain as suspects. The group has useful information but can't be certain."
+                    }
                     else ->
-                        "Everyone's claims are consistent with many different Meowfia combinations. There's no way to narrow it down from public information alone — it's a guessing game."
+                        "Everyone's claims are consistent with many different Meowfia combinations. There's no way to narrow it down from public information alone — it could be anyone."
                 }
 
                 val worldDescriptions = result.consistentWorldDetails.map { meowfiaSet ->
@@ -334,11 +344,7 @@ object PostRoundAnalyzer {
                 }
 
                 SolvabilityAnalysis(
-                    verdict = when (result.solvability) {
-                        RoundSolver.Solvability.SOLVED -> "SOLVED"
-                        RoundSolver.Solvability.NARROWED -> "NARROWED"
-                        RoundSolver.Solvability.COIN_FLIP -> "COIN FLIP"
-                    },
+                    verdict = result.verdictLabel,
                     verdictExplanation = verdictExplanation,
                     suspects = result.suspects.mapNotNull { id -> players.find { it.id == id }?.name },
                     cleared = result.cleared.mapNotNull { id -> players.find { it.id == id }?.name },

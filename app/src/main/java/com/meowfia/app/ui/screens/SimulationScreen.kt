@@ -635,13 +635,12 @@ private fun androidx.compose.foundation.layout.ColumnScope.SingleGameResultsView
                         val pct = if (s.totalCandidates > 0) {
                             ((1.0 - s.consistentWorlds.toDouble() / s.totalCandidates) * 100)
                         } else 100.0
-                        val (verdict, vColor) = when (s.solvability) {
-                            com.meowfia.app.testing.sim.RoundSolver.Solvability.SOLVED ->
-                                "SOLVED" to MeowfiaColors.Farm
-                            com.meowfia.app.testing.sim.RoundSolver.Solvability.NARROWED ->
-                                "NARROWED" to MeowfiaColors.Primary
-                            com.meowfia.app.testing.sim.RoundSolver.Solvability.COIN_FLIP ->
-                                "COIN FLIP" to MeowfiaColors.TextSecondary
+                        val verdict = s.verdictLabel
+                        val vColor = when (s.solvability) {
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.SOLVED -> MeowfiaColors.Farm
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.ACTIONABLE -> MeowfiaColors.Farm
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.NARROWED -> MeowfiaColors.Primary
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.COIN_FLIP -> MeowfiaColors.TextSecondary
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
@@ -822,8 +821,9 @@ private fun androidx.compose.foundation.layout.ColumnScope.BatchResultsDashboard
         item {
             SummaryCard("Deducibility") {
                 HealthRow("Solved", "%.1f%%".format(stats.solvedRate * 100), stats.solvedRate < 0.5)
+                StatRow("Actionable", "%.1f%%".format(stats.actionableRate * 100))
                 StatRow("Narrowed", "%.1f%%".format(stats.narrowedRate * 100))
-                StatRow("Coin Flip", "%.1f%%".format(stats.coinFlipRate * 100))
+                StatRow("Could Be Anyone", "%.1f%%".format(stats.coinFlipRate * 100))
                 if (stats.avgSuspectsWhenNarrowed > 0) {
                     StatRow("Avg Suspects (narrowed)", "%.1f".format(stats.avgSuspectsWhenNarrowed))
                 }
@@ -1283,10 +1283,12 @@ private fun RoundDetailCard(
                         fontWeight = FontWeight.Bold
                     )
                     roundLog.solvability?.let { solve ->
-                        val (label, sColor) = when (solve.solvability) {
-                            com.meowfia.app.testing.sim.RoundSolver.Solvability.SOLVED -> "SOLVED" to MeowfiaColors.Farm
-                            com.meowfia.app.testing.sim.RoundSolver.Solvability.NARROWED -> "NARROWED" to MeowfiaColors.Primary
-                            com.meowfia.app.testing.sim.RoundSolver.Solvability.COIN_FLIP -> "COIN FLIP" to MeowfiaColors.TextSecondary
+                        val label = solve.verdictLabel
+                        val sColor = when (solve.solvability) {
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.SOLVED -> MeowfiaColors.Farm
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.ACTIONABLE -> MeowfiaColors.Farm
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.NARROWED -> MeowfiaColors.Primary
+                            com.meowfia.app.testing.sim.RoundSolver.Solvability.COIN_FLIP -> MeowfiaColors.TextSecondary
                         }
                         Text(label, color = sColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
