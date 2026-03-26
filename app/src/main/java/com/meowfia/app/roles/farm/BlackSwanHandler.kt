@@ -39,6 +39,9 @@ class BlackSwanHandler : RoleHandler {
 
     override fun getSelfEggRange() = 0..1
 
+    override fun getValidTargets(actor: Player, allPlayers: List<Player>): List<Player> =
+        listOf(actor) // Black Swan always visits self
+
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
         return context.getInfoFor(player.id)
     }

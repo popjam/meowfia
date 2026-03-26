@@ -512,6 +512,66 @@ fun PostRoundAnalysisScreen(
                     }
                 }
 
+                // Suspicion ranking
+                if (solv.suspicionRanking.isNotEmpty()) {
+                    item {
+                        InfoCard {
+                            Text(
+                                text = "Suspicion Ranking",
+                                color = MeowfiaColors.Primary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            for (entry in solv.suspicionRanking) {
+                                val barLen = (entry.percent * 15 / 100).coerceIn(0, 15)
+                                val barColor = when {
+                                    entry.percent == 0 -> MeowfiaColors.Farm
+                                    entry.percent >= 80 -> MeowfiaColors.Secondary
+                                    entry.percent >= 40 -> MeowfiaColors.Primary
+                                    else -> MeowfiaColors.TextSecondary
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        entry.playerName,
+                                        color = MeowfiaColors.TextPrimary,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.width(80.dp)
+                                    )
+                                    Text(
+                                        "\u2588".repeat(barLen),
+                                        color = barColor,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        "${entry.percent}%",
+                                        color = barColor,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.width(40.dp),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                                    )
+                                    if (entry.isActualMeowfia) {
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("M", color = MeowfiaColors.Meowfia, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "% = how often this player appears as Meowfia across consistent scenarios. M = actually Meowfia.",
+                                color = MeowfiaColors.TextSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+
                 // Clue breakdown
                 if (solv.reasons.isNotEmpty()) {
                     item {

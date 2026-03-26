@@ -296,16 +296,21 @@ object PostRoundAnalyzer {
                     pool = gameState.pool.map { it.roleId },
                     dawnReports = dawnReports,
                     assignments = assignments,
-                    visitGraph = gameState.visitGraph
+                    visitGraph = gameState.visitGraph,
+                    actualVisitGraph = gameState.visitGraph,
+                    playerNames = players.associate { it.id to it.name },
+                    exhaustiveSearch = true  // thorough analysis for post-game review
                 )
                 val actualMeowfia = players.filter { it.alignment == Alignment.MEOWFIA }.map { it.id }.toSet()
 
-                val verdictExplanation = when (result.solvability) {
-                    RoundSolver.Solvability.SOLVED ->
+                val verdictExplanation = when {
+                    result.consistentWorlds == 0 ->
+                        "Someone's claims are impossible — no combination of Meowfia assignments can explain what everyone said. At least one player is definitely lying, but we can't determine exactly who from the claims alone."
+                    result.solvability == RoundSolver.Solvability.SOLVED ->
                         "Based on what everyone claimed, there's only one possible explanation for who the Meowfia are. A careful player could figure it out."
-                    RoundSolver.Solvability.NARROWED ->
+                    result.solvability == RoundSolver.Solvability.NARROWED ->
                         "Some players can be ruled out as Meowfia based on the claims, but there are still multiple possibilities. The group has useful information but can't be certain."
-                    RoundSolver.Solvability.COIN_FLIP ->
+                    else ->
                         "Everyone's claims are consistent with many different Meowfia combinations. There's no way to narrow it down from public information alone — it's a guessing game."
                 }
 
@@ -341,6 +346,14 @@ object PostRoundAnalyzer {
                     totalCandidates = result.totalCandidates,
                     reasons = result.reasons,
                     playerClaims = playerClaimSummaries,
+                    suspicionRanking = result.suspicionRatings.map { (id, rating) ->
+                        val player = players.find { it.id == id }
+                        com.meowfia.app.data.model.SuspicionEntry(
+                            playerName = player?.name ?: "Player $id",
+                            percent = (rating * 100).toInt(),
+                            isActualMeowfia = player?.alignment == Alignment.MEOWFIA
+                        )
+                    }.sortedByDescending { it.percent },
                     worldDescriptions = worldDescriptions
                 )
             }

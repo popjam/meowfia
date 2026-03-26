@@ -45,31 +45,32 @@ class RoundSolverTest {
     }
 
     @Test
-    fun impossible_egg_delta_eliminates_farm_worlds() {
-        // Player 0 claims +3 eggs as Pigeon — impossible (Pigeon lays in target's nest, not own).
-        // Only Farm-minority worlds are checked (max 1 Meowfia for 4 players).
-        // Worlds where player 0 is the sole Meowfia should still be evaluated.
-        val pool = listOf(RoleId.PIGEON, RoleId.HOUSE_CAT, RoleId.HAWK)
+    fun impossible_eagle_egg_delta_eliminates_worlds() {
+        // Player 0 claims Eagle visiting player 1 with +5 eggs.
+        // Only 3 other players exist, and only 1 claims to visit player 1.
+        // Even with 1 Meowfia, max visitors to player 1 = 1 known + 1 Meowfia = 2.
+        // +5 is impossible → worlds where player 0 is Farm are eliminated.
+        val pool = listOf(RoleId.PIGEON, RoleId.HOUSE_CAT, RoleId.EAGLE)
         val claims = mapOf(
-            0 to ClaimData(0, RoleId.PIGEON, 1, 3),
-            1 to ClaimData(1, RoleId.HAWK, 2, 0),
-            2 to ClaimData(2, RoleId.PIGEON, 0, 0),
-            3 to ClaimData(3, RoleId.PIGEON, 1, 0)
+            0 to ClaimData(0, RoleId.EAGLE, 1, 5),  // claims +5 as Eagle — too many
+            1 to ClaimData(1, RoleId.PIGEON, 2, 0),
+            2 to ClaimData(2, RoleId.PIGEON, 3, 0),
+            3 to ClaimData(3, RoleId.PIGEON, 1, 0)  // only player visiting target 1
         )
         val assignments = listOf(
             PlayerAssignment(0, Alignment.MEOWFIA, RoleId.HOUSE_CAT),
-            PlayerAssignment(1, Alignment.FARM, RoleId.HAWK),
+            PlayerAssignment(1, Alignment.FARM, RoleId.PIGEON),
             PlayerAssignment(2, Alignment.FARM, RoleId.PIGEON),
             PlayerAssignment(3, Alignment.FARM, RoleId.PIGEON)
         )
         val reports = (0..3).map { report(it) }
 
         val result = RoundSolver.analyze(claims, pool, reports, assignments, emptyMap())
-        // Only size-0 and size-1 Meowfia subsets are checked (Farm-majority only)
-        // 4 players → C(4,0) + C(4,1) = 5 total candidates
         assertThat(result.totalCandidates).isEqualTo(5)
-        // Not all candidates should be consistent (the impossible +3 eliminates some)
+        // Player 0's +5 Eagle claim is impossible — should eliminate worlds where they're Farm
         assertThat(result.consistentWorlds).isLessThan(result.totalCandidates)
+        // Player 0 should be a suspect
+        assertThat(result.suspects).contains(0)
     }
 
     @Test

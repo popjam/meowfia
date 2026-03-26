@@ -57,6 +57,8 @@ interface RoleHandler {
      * - [NightPrompt.PickPlayer]: all other players (or including self if `!excludeSelf`)
      * - [NightPrompt.SelfVisit]: only the player themselves
      * - [NightPrompt.Automatic]: all other players (target is chosen randomly at runtime)
+     *
+     * Override for roles with special targeting (e.g. Tit visits only Meowfia).
      */
     fun getValidTargets(player: Player, allPlayers: List<Player>): List<Player> {
         return when (val prompt = getNightPrompt(player, allPlayers)) {

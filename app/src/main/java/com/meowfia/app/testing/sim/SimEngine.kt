@@ -228,7 +228,8 @@ class SimEngine(private val config: SimConfig) {
             pool = pool.map { it.roleId },
             dawnReports = dawnReports,
             assignments = assignments,
-            visitGraph = coordinator.state.visitGraph
+            visitGraph = coordinator.state.visitGraph,
+            actualVisitGraph = coordinator.state.visitGraph
         )
         log.solvability?.let { logger.solvability(it) }
 

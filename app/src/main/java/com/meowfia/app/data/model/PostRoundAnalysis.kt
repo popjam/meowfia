@@ -33,17 +33,34 @@ data class SolvabilityAnalysis(
     val reasons: List<String>,
     /** What each player claimed during the day. */
     val playerClaims: List<PlayerClaimSummary>,
+    /** Per-player suspicion: name → 0–100% how often they appear as Meowfia in consistent worlds. */
+    val suspicionRanking: List<SuspicionEntry> = emptyList(),
     /** Each possible world described as a list of who would be Meowfia. */
     val worldDescriptions: List<WorldDescription>
 ) {
     /** 0–100 percentage of how solvable the round was.
-     *  100% = fully solved, 0% = no information gained (pure coin flip). */
+     *  100% = fully solved (exactly 1 world), 0% = no info (coin flip).
+     *  0 consistent worlds = contradictory claims, not truly solved. */
     val solvabilityPercent: Int get() {
         if (totalCandidates <= 1) return 100
-        if (consistentWorlds <= 1) return 100
+        if (consistentWorlds == 0) {
+            // All worlds eliminated = contradictory claims.
+            // If suspects were narrowed, show high %. Otherwise 50%.
+            val suspectRatio = if (suspects.isNotEmpty()) {
+                (1.0 - suspects.size.toDouble() / (suspects.size + cleared.size).coerceAtLeast(1)) * 100
+            } else 50.0
+            return suspectRatio.toInt().coerceIn(30, 95)
+        }
+        if (consistentWorlds == 1) return 100
         return ((1.0 - consistentWorlds.toDouble() / totalCandidates) * 100).toInt().coerceIn(0, 100)
     }
 }
+
+data class SuspicionEntry(
+    val playerName: String,
+    val percent: Int,  // 0–100
+    val isActualMeowfia: Boolean
+)
 
 data class PlayerClaimSummary(
     val playerId: Int,
