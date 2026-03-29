@@ -1,22 +1,38 @@
 package com.meowfia.app.ui.screens
 
+import android.graphics.Bitmap
+import android.media.AudioManager
+import android.media.ToneGenerator
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -25,245 +41,502 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.meowfia.app.data.model.CardType
+import com.meowfia.app.data.model.PreConfiguredPlayer
 import com.meowfia.app.data.model.RoleId
+import com.meowfia.app.qr.QrScannerView
 import com.meowfia.app.ui.components.MeowfiaPrimaryButton
 import com.meowfia.app.ui.components.MeowfiaSecondaryButton
+import com.meowfia.app.ui.components.ProfilePicturePicker
+import com.meowfia.app.ui.components.ProfileThumbnail
+import com.meowfia.app.ui.components.RoleCardOverlay
+import com.meowfia.app.ui.components.RoleGrid
 import com.meowfia.app.ui.components.RoleIcon
+import com.meowfia.app.ui.components.generateColorProfile
 import com.meowfia.app.ui.theme.MeowfiaColors
+import com.meowfia.app.util.hapticTick
+import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PoolSetupScreen(
-    onStartGame: (selectedRoles: List<RoleId>, playerCount: Int, botCount: Int) -> Unit
+    onStartGame: (selectedRoles: List<RoleId>, playerSlots: List<PreConfiguredPlayer>) -> Unit
 ) {
-    var selectedTab by remember { mutableIntStateOf(1) } // 0 = QR, 1 = Manual
-    var playerCount by remember { mutableIntStateOf(6) }
-    var botCount by remember { mutableIntStateOf(0) }
-    val selectedRoles = remember {
-        mutableStateListOf(RoleId.PIGEON, RoleId.HOUSE_CAT)
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val selectedRoles = remember { mutableStateListOf<RoleId>() }
+    val playerSlots = remember {
+        mutableStateListOf<PreConfiguredPlayer>().apply {
+            repeat(3) { add(PreConfiguredPlayer(isBot = true)) }
+        }
+    }
+    var editingPlayerIndex by remember { mutableStateOf<Int?>(null) }
+    var overlayRole by remember { mutableStateOf<RoleId?>(null) }
+    var lastScannedRole by remember { mutableStateOf<RoleId?>(null) }
+    val view = LocalView.current
+
+    val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80) }
+    DisposableEffect(Unit) { onDispose { toneGenerator.release() } }
+
+    LaunchedEffect(lastScannedRole) {
+        if (lastScannedRole != null) { delay(1500); lastScannedRole = null }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 16.dp)
-    ) {
-        Text(
-            text = "Pool Setup",
-            color = MeowfiaColors.TextPrimary,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+    val playerCount = playerSlots.size
+    val botCount = playerSlots.count { it.isBot }
 
-        // Player count selector
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
-            Text("Players:", color = MeowfiaColors.TextPrimary, fontSize = 18.sp)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                MeowfiaSecondaryButton(
-                    text = "-",
-                    onClick = {
-                        if (playerCount > 3) {
-                            playerCount--
-                            if (botCount > playerCount) botCount = playerCount
-                        }
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = playerCount > 3
-                )
-                Text(
-                    text = "$playerCount",
-                    color = MeowfiaColors.Primary,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                MeowfiaSecondaryButton(
-                    text = "+",
-                    onClick = { if (playerCount < 8) playerCount++ },
-                    modifier = Modifier.weight(1f),
-                    enabled = playerCount < 8
-                )
-            }
-        }
+            Text("Pool Setup", color = MeowfiaColors.TextPrimary, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Bot count selector
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Bots:", color = MeowfiaColors.TextPrimary, fontSize = 18.sp)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                MeowfiaSecondaryButton(
-                    text = "-",
-                    onClick = { if (botCount > 0) botCount-- },
-                    modifier = Modifier.weight(1f),
-                    enabled = botCount > 0
-                )
-                Text(
-                    text = "$botCount",
-                    color = MeowfiaColors.Primary,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                MeowfiaSecondaryButton(
-                    text = "+",
-                    onClick = { if (botCount < playerCount) botCount++ },
-                    modifier = Modifier.weight(1f),
-                    enabled = botCount < playerCount
-                )
-            }
-        }
-
-        if (botCount == playerCount) {
-            Text(
-                text = "Spectator mode — all players are bots",
-                color = MeowfiaColors.TextSecondary,
-                fontSize = 13.sp
+            // Player bubble row
+            Text("Players", color = MeowfiaColors.TextSecondary, fontSize = 13.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            PlayerBubbleRow(
+                slots = playerSlots,
+                onRemove = { index -> if (playerSlots.size > 3) playerSlots.removeAt(index) },
+                onAdd = { if (playerSlots.size < 8) playerSlots.add(PreConfiguredPlayer(isBot = true)) },
+                onLongPress = { index -> editingPlayerIndex = index }
             )
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Tab selector
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = MeowfiaColors.Surface
-        ) {
-            Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
-                Text("Scan QR", modifier = Modifier.padding(12.dp), color = MeowfiaColors.TextPrimary)
+            if (playerSlots.all { it.isBot }) {
+                Text("Spectator mode", color = MeowfiaColors.TextSecondary, fontSize = 12.sp)
             }
-            Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }) {
-                Text("Select Manually", modifier = Modifier.padding(12.dp), color = MeowfiaColors.TextPrimary)
-            }
-        }
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-        when (selectedTab) {
-            0 -> {
-                // QR tab placeholder
-                Column(
-                    modifier = Modifier.weight(1f),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text("QR Scanner", color = MeowfiaColors.TextSecondary, fontSize = 18.sp)
-                    Text("Camera preview will appear here", color = MeowfiaColors.TextSecondary, fontSize = 14.sp)
+            // Pool bubbles
+            PoolBubbleRow(
+                roles = selectedRoles,
+                onRemove = { role -> selectedRoles.remove(role) },
+                onLongPress = { role -> overlayRole = role },
+                onAddRandom = {
+                    val existing = selectedRoles.toSet()
+                    val roll = Math.random()
+                    val type = when {
+                        roll < 0.60 -> CardType.FARM_ANIMAL
+                        roll < 0.90 -> CardType.MEOWFIA_ANIMAL
+                        else -> CardType.FLOWER
+                    }
+                    val candidates = RoleId.entries.filter {
+                        it.implemented && it.cardType == type && !it.isBuffer && it !in existing
+                    }
+                    val fallback = RoleId.entries.filter {
+                        it.implemented && !it.isBuffer && it !in existing
+                    }
+                    val pick = (candidates.ifEmpty { fallback }).randomOrNull()
+                    if (pick != null) selectedRoles.add(pick)
+                }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Tab selector
+            TabRow(selectedTabIndex = selectedTab, containerColor = MeowfiaColors.Surface) {
+                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
+                    Text("Scan QR", modifier = Modifier.padding(12.dp), color = MeowfiaColors.TextPrimary)
+                }
+                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }) {
+                    Text("Manual", modifier = Modifier.padding(12.dp), color = MeowfiaColors.TextPrimary)
                 }
             }
-            1 -> {
-                // Manual selection
-                val implementedRoles = remember { RoleId.entries.filter { it.implemented && !it.isBuffer } }
-                val grouped = remember(implementedRoles) { implementedRoles.groupBy { it.cardType } }
 
-                Text(
-                    text = "Pool: ${selectedRoles.size} cards (2 base + ${selectedRoles.size - 2} selected)",
-                    color = MeowfiaColors.TextSecondary,
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-                LazyColumn(modifier = Modifier.weight(1f)) {
-                    for ((type, roles) in grouped) {
-                        item {
-                            val label = when (type) {
-                                CardType.FARM_ANIMAL -> "Farm Animals"
-                                CardType.MEOWFIA_ANIMAL -> "Meowfia Animals"
-                                CardType.FLOWER -> "Flowers"
-                            }
-                            Text(
-                                text = label,
-                                color = when (type) {
-                                    CardType.FARM_ANIMAL -> MeowfiaColors.Farm
-                                    CardType.MEOWFIA_ANIMAL -> MeowfiaColors.Meowfia
-                                    CardType.FLOWER -> MeowfiaColors.Confused
-                                },
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        }
-                        items(roles, key = { it.name }) { role ->
-                            val isSelected = role in selectedRoles
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = isSelected,
-                                    onCheckedChange = { checked ->
-                                        if (checked) selectedRoles.add(role)
-                                        else selectedRoles.remove(role)
-                                    },
-                                    colors = CheckboxDefaults.colors(
-                                        checkedColor = MeowfiaColors.Primary,
-                                        uncheckedColor = MeowfiaColors.TextSecondary
-                                    )
-                                )
-                                RoleIcon(roleId = role, size = 36)
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(role.displayName, color = MeowfiaColors.TextPrimary, fontSize = 16.sp)
-                                    Text(role.description, color = MeowfiaColors.TextSecondary, fontSize = 13.sp)
+            when (selectedTab) {
+                0 -> {
+                    Box(modifier = Modifier.weight(1f)) {
+                        QrScannerView(
+                            onCardScanned = { roleId ->
+                                selectedRoles.add(roleId)
+                                lastScannedRole = roleId
+                                toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 150)
+                                view.hapticTick()
+                            },
+                            useFrontCamera = true,
+                            allowDuplicates = true,
+                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp))
+                        )
+                        // Scan confirmation overlay
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = lastScannedRole != null,
+                            enter = androidx.compose.animation.scaleIn() + androidx.compose.animation.fadeIn(),
+                            exit = androidx.compose.animation.scaleOut() + androidx.compose.animation.fadeOut(),
+                            modifier = Modifier.align(Alignment.Center)
+                        ) {
+                            lastScannedRole?.let { scanned ->
+                                Box(
+                                    modifier = Modifier
+                                        .background(MeowfiaColors.Surface.copy(alpha = 0.9f), RoundedCornerShape(16.dp))
+                                        .padding(20.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        RoleIcon(roleId = scanned, size = 56)
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(scanned.displayName, color = MeowfiaColors.Primary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                        Text("Added!", color = MeowfiaColors.Farm, fontSize = 14.sp)
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                1 -> {
+                    val implementedRoles = remember { RoleId.entries.filter { it.implemented } }
+                    // Stable snapshot to avoid recomposition on every scroll frame
+                    val selectionSnapshot = remember(selectedRoles.size, selectedRoles.hashCode()) {
+                        selectedRoles.toSet()
+                    }
+                    RoleGrid(
+                        roles = implementedRoles,
+                        selectedRoles = selectionSnapshot,
+                        onRoleTap = { role ->
+                            if (role in selectedRoles) selectedRoles.remove(role)
+                            else selectedRoles.add(role)
+                        },
+                        onRoleLongPress = { role -> overlayRole = role },
+                        onCategoryTap = { type ->
+                            val rolesOfType = implementedRoles.filter { it.cardType == type }
+                            val allSelected = rolesOfType.all { it in selectedRoles }
+                            if (allSelected) {
+                                selectedRoles.removeAll { it.cardType == type }
+                            } else {
+                                for (r in rolesOfType) { if (r !in selectedRoles) selectedRoles.add(r) }
+                            }
+                        },
+                        modifier = Modifier.weight(1f).fillMaxWidth()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Validate pool
+            val hasFarm = selectedRoles.any { it.isFarmAnimal }
+            val hasMeowfia = selectedRoles.any { it.isMeowfiaAnimal }
+            val hasTwinflower = selectedRoles.any { it == RoleId.TWINFLOWER }
+            val playerCount = playerSlots.size
+
+            // Buffer roles handle overflow: Pigeon covers extra Farm, House Cat covers extra Meowfia
+            val hasPigeon = RoleId.PIGEON in selectedRoles
+            val hasHouseCat = RoleId.HOUSE_CAT in selectedRoles
+            val farmRoleCount = selectedRoles.count { it.isFarmAnimal }
+            val meowfiaRoleCount = selectedRoles.count { it.isMeowfiaAnimal }
+
+            // Each team needs enough roles for worst case (all players on that team).
+            // Buffer roles act as unlimited overflow. Twinflower removes uniqueness constraint.
+            val farmOk = hasTwinflower || hasPigeon || farmRoleCount >= playerCount
+            val meowfiaOk = hasTwinflower || hasHouseCat || meowfiaRoleCount >= playerCount
+
+            val canStart = hasFarm && hasMeowfia && farmOk && meowfiaOk
+            val errorText = when {
+                selectedRoles.none { it.isFarmAnimal || it.isMeowfiaAnimal } -> "Select at least one role"
+                !hasFarm -> "Need at least one Farm role"
+                !hasMeowfia -> "Need at least one Meowfia role"
+                !farmOk -> "Farm needs Pigeon (buffer) or $playerCount unique Farm roles (or Twinflower)"
+                !meowfiaOk -> "Meowfia needs House Cat (buffer) or $playerCount unique Meowfia roles (or Twinflower)"
+                else -> null
+            }
+
+            if (errorText != null) {
+                Text(errorText, color = MeowfiaColors.Secondary, fontSize = 12.sp,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            MeowfiaPrimaryButton(
+                text = "Start Game",
+                enabled = canStart,
+                onClick = { onStartGame(selectedRoles.toList(), playerSlots.toList()) }
+            )
+        }
+
+        // Role card overlay
+        RoleCardOverlay(roleId = overlayRole, onDismiss = { overlayRole = null })
+
+        // Player customization overlay
+        if (editingPlayerIndex != null) {
+            val idx = editingPlayerIndex!!
+            PlayerCustomizationOverlay(
+                slot = playerSlots[idx],
+                playerIndex = idx,
+                onUpdate = { updated -> playerSlots[idx] = updated },
+                onDismiss = { editingPlayerIndex = null }
+            )
+        }
+    }
+}
+
+// --- Player Bubble Row ---
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PlayerBubbleRow(
+    slots: List<PreConfiguredPlayer>,
+    onRemove: (Int) -> Unit,
+    onAdd: () -> Unit,
+    onLongPress: (Int) -> Unit
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        itemsIndexed(slots) { index, slot ->
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(52.dp)
+                    .height(66.dp)
+                    .combinedClickable(
+                        onClick = { onRemove(index) },
+                        onLongClick = { onLongPress(index) }
+                    )
+            ) {
+                if (slot.isBot) {
+                    // Bot bubble
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(MeowfiaColors.SurfaceElevated)
+                            .border(2.dp, MeowfiaColors.TextSecondary, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("B", color = MeowfiaColors.TextSecondary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
+                } else if (slot.profileBitmap != null) {
+                    ProfileThumbnail(bitmap = slot.profileBitmap, size = 44)
+                } else {
+                    val bitmap = remember(index) { generateColorProfile(index) }
+                    ProfileThumbnail(bitmap = bitmap, size = 44)
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = when {
+                        slot.isBot -> slot.name ?: "Bot"
+                        slot.name != null -> slot.name
+                        else -> "P${index + 1}"
+                    },
+                    color = MeowfiaColors.TextSecondary,
+                    fontSize = 9.sp,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            MeowfiaSecondaryButton(
-                text = "All Roles",
-                onClick = {
-                    val allImplemented = RoleId.entries.filter { it.implemented && !it.isBuffer }
-                    for (role in allImplemented) {
-                        if (role !in selectedRoles) selectedRoles.add(role)
-                    }
-                },
-                modifier = Modifier.weight(1f).height(44.dp)
-            )
-            MeowfiaSecondaryButton(
-                text = "Clear Roles",
-                onClick = {
-                    selectedRoles.removeAll { !it.isBuffer }
-                },
-                modifier = Modifier.weight(1f).height(44.dp)
-            )
+        // Add button
+        item {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.width(52.dp).height(66.dp).clickable { onAdd() }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, MeowfiaColors.Primary.copy(alpha = 0.5f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("+", color = MeowfiaColors.Primary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text("Add", color = MeowfiaColors.TextSecondary, fontSize = 9.sp)
+            }
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        if (selectedRoles.size > 2) {
-            MeowfiaPrimaryButton(
-                text = "Start Game",
-                onClick = { onStartGame(selectedRoles.toList(), playerCount, botCount) }
+    }
+}
+
+// --- Player Customization Overlay ---
+
+@Composable
+private fun PlayerCustomizationOverlay(
+    slot: PreConfiguredPlayer,
+    playerIndex: Int,
+    onUpdate: (PreConfiguredPlayer) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember(playerIndex) { mutableStateOf(slot.name ?: "") }
+    var profile by remember(playerIndex) { mutableStateOf(slot.profileBitmap) }
+    var isBot by remember(playerIndex) { mutableStateOf(slot.isBot) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MeowfiaColors.Background.copy(alpha = 0.85f))
+            .clickable(enabled = false) {},
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MeowfiaColors.Surface)
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "Customize Player ${playerIndex + 1}",
+                color = MeowfiaColors.Primary,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
             )
-        } else {
+            Spacer(modifier = Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Name", color = MeowfiaColors.TextSecondary) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MeowfiaColors.Primary,
+                    unfocusedBorderColor = MeowfiaColors.TextSecondary,
+                    focusedTextColor = MeowfiaColors.TextPrimary,
+                    unfocusedTextColor = MeowfiaColors.TextPrimary,
+                    cursorColor = MeowfiaColors.Primary
+                )
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (!isBot) {
+                ProfilePicturePicker(
+                    playerIndex = playerIndex,
+                    onProfileChanged = { bmp -> profile = bmp },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            MeowfiaSecondaryButton(
+                text = if (isBot) "Make Human" else "Make Bot",
+                onClick = { isBot = !isBot }
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
             MeowfiaPrimaryButton(
-                text = "Start with Defaults",
+                text = "Done",
                 onClick = {
-                    val defaults = listOf(RoleId.PIGEON, RoleId.HOUSE_CAT)
-                    onStartGame(defaults, playerCount, botCount)
+                    val finalName = name.trim().ifEmpty { null }
+                    onUpdate(PreConfiguredPlayer(name = finalName, profileBitmap = profile, isBot = isBot))
+                    onDismiss()
                 }
             )
+        }
+    }
+}
+
+// --- Pool Bubble Row (for roles) ---
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PoolBubbleRow(
+    roles: List<RoleId>,
+    onRemove: (RoleId) -> Unit,
+    onLongPress: (RoleId) -> Unit,
+    onAddRandom: () -> Unit = {}
+) {
+    val grouped = remember(roles.toList()) {
+        val counts = mutableMapOf<RoleId, Int>()
+        for (r in roles) counts[r] = (counts[r] ?: 0) + 1
+        val seen = mutableSetOf<RoleId>()
+        roles.mapNotNull { r -> if (seen.add(r)) r to counts[r]!! else null }
+    }
+
+    Column(modifier = Modifier.height(92.dp)) {
+        Text("Pool: ${roles.size} cards", color = MeowfiaColors.TextSecondary, fontSize = 13.sp)
+        Spacer(modifier = Modifier.height(6.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            itemsIndexed(grouped) { _, (role, count) ->
+                Box(
+                    modifier = Modifier.combinedClickable(
+                        onClick = { onRemove(role) },
+                        onLongClick = { onLongPress(role) }
+                    )
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.width(56.dp).height(70.dp)
+                    ) {
+                        Box {
+                            RoleIcon(roleId = role, size = 44)
+                            if (count > 1) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .offset(x = 4.dp, y = (-4).dp)
+                                        .size(20.dp)
+                                        .background(MeowfiaColors.Secondary, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("$count", color = MeowfiaColors.TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            if (role.isBuffer) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .offset(x = 2.dp, y = 2.dp)
+                                        .size(14.dp)
+                                        .background(MeowfiaColors.Primary, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("B", color = MeowfiaColors.TextOnPrimary, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = role.displayName,
+                            color = if (role.isBuffer) MeowfiaColors.Primary else MeowfiaColors.TextPrimary,
+                            fontSize = 10.sp,
+                            fontStyle = if (role.isBuffer) FontStyle.Italic else FontStyle.Normal,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            lineHeight = 11.sp
+                        )
+                    }
+                }
+            }
+
+            // Random add bubble
+            item {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .width(56.dp)
+                        .height(70.dp)
+                        .clickable { onAddRandom() }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, MeowfiaColors.Primary.copy(alpha = 0.5f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("?", color = MeowfiaColors.Primary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text("Random", color = MeowfiaColors.TextSecondary, fontSize = 9.sp, textAlign = TextAlign.Center)
+                }
+            }
         }
     }
 }

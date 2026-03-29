@@ -25,16 +25,22 @@ class BlackSwanHandler : RoleHandler {
             return
         }
 
-        // Report current role to the player
-        context.addInfo(actor.id, "You are the ${actor.roleId.displayName}.")
+        // Check current role (may have been swapped by Frog/Switcheroo)
+        val currentRole = context.getCurrentRole(actor.id)
+        context.addInfo(actor.id, "You are the ${currentRole.displayName}.")
 
-        if (actor.roleId == RoleId.BLACK_SWAN) {
+        if (currentRole == RoleId.BLACK_SWAN) {
             context.addEggs(actor.id, 1)
             context.log("${actor.name} (Black Swan) visits self — still a Black Swan. Egg gained.")
         } else {
-            context.log("${actor.name} (Black Swan) visits self — role has been swapped to ${actor.roleId.displayName}. No egg.")
+            context.log("${actor.name} (Black Swan) visits self — role has been swapped to ${currentRole.displayName}. No egg.")
         }
     }
+
+    override fun getSelfEggRange() = 0..1
+
+    override fun getValidTargets(actor: Player, allPlayers: List<Player>): List<Player> =
+        listOf(actor) // Black Swan always visits self
 
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
         return context.getInfoFor(player.id)

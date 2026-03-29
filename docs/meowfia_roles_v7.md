@@ -9,6 +9,9 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Pigeon** *(buffer)*
 > Visit a player and lay an egg in their nest.
 
+> **Lazy Pigeon**
+> Visit a player and lay an egg in the nest of the player they visited (if any). You see yourself as a Pigeon, but other players see you as a Lazy Pigeon.
+
 > **Hawk**
 > Visit a player. If they are Meowfia, lay an egg in your nest.
 
@@ -19,7 +22,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Visit yourself every night and learn your role. If you are still Black Swan, lay an egg in your nest.
 
 > **Ugly Duckling**
-> You appear as Meowfia to investigators. Visit a player and steal 2 eggs from their nest.
+> You appear as Meowfia to investigators. Visit a player and steal 1 egg from their nest.
 
 > **Kookaburra**
 > Visit a player. Learn their role and lay an egg in their nest. If anyone visits you, you will be confused.
@@ -28,10 +31,10 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Visit a player and choose a role. If they are that role, lay an egg in your nest.
 
 > **Eagle**
-> Visit a player. Lay eggs in your nest equal to the number of other players who visited them.
+> Visit a player. Learn who visited them and lay eggs in your nest equal to the number of visitors (excluding you).
 
 > **Falcon**
-> Visit a player. Lay an egg in the nest of the player they visited (if any).
+> Visit a player. Lay an egg in their nest and learn who they visited.
 
 > **Turkey**
 > Stay home. Lay an egg in the nest of each player who visits you.
@@ -42,20 +45,24 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Mosquito**
 > You will visit a random player at night and lay an egg in their nest.
 
-> **Parrot**
-> Choose a player at night. You immediately become a copy of their role and perform their action.
+>
+> **Seagull**
+> Visit a player at night. They will swap nests with the player they visited (if any). If they have the same amount of eggs in their nest as the player they visited, lay an egg in your nest.
 
 > **Goose**
 > When the Goose is in the pool, winners are losers and losers are winners during scoring. Visit a player — lay an egg in both of their neighbours' nests (but not theirs).
 
 > **Chicken**
-> Visit a player and lay 2 eggs in their nest. If anyone throws a single card at you during eggsecution, you lose (even if Farm wins).
+> Stay at home and lay eggs in your nest equal to the number of players who visited you. If anyone throws a single card at you during eggsecution, you lose (even if Farm wins).
 
 > **Brolga**
 > You will learn all of the Farm roles in play. Choose one of them — you will visit that player at night and lay an egg in their nest.
 
+> **Cuckoo**
+> You are secretly the Cuckoo, but you believe you are another animal. You will perform that animal's night actions, but none of it actually happens. Instead, you visit yourself and lay an egg in your nest. Other players will see you as the Cuckoo.
+
 > **Ostrich**
-> You believe you are another animal, but you are actually the Ostrich. Other players will see you as the Ostrich. Lay 2 eggs in the nest of the player you visit.
+> You see yourself as Ostrich, but you are actually an unused farm role from the pool (or pigeon if there are none left). Choose someone to visit at night, you will do your actual role's action on them (if any). Other players see your real role.
 
 > **Tit**
 > You will visit a random Meowfia player and lay an egg in their nest (without knowing who they are).
@@ -89,10 +96,10 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Visit a player. You will confuse them. Any players that visit you will become confused.
 
 > **Clownfish**
-> Visit a player and do nothing. If you are eggsecuted, you win exclusively (in addition to any regular win).
+> Visit a player and do nothing. If you are eggsecuted, you win all the eggs thrown at you.
 
-> **Donkey**
-> Each time a player visits you at night, roles will rotate one seat clockwise.
+> **Brumby**
+> Visit a player. Roles will rotate clockwise equal to the number of eggs in their nest.
 
 > **Sheepdog**
 > Visit a player and hug them. If there are any Sheep in the game, you will learn who they are.
@@ -102,6 +109,9 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 
 > **Wasp**
 > Start with a Wink. You must use it before the round ends or you specifically will lose, regardless of your team's outcome.
+
+> **Gecko**
+> Choose a player at night. You immediately become a copy of their role and perform their action.
 
 ---
 
@@ -119,7 +129,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > You will learn all of the farm roles in play. Choose a role — you will visit a player who is that role and learn who they are.
 
 > **Floofer**
-> Visit a player and hug them. Any players that visit you will be hugged. You cannot be hugged.
+> Visit a player and hug them. Any players that visit you will be hugged.
 
 > **Cat Burgler**
 > Visit a player and steal up to 3 eggs from their nest. Choose another player to give any number of the stolen eggs to.
@@ -128,7 +138,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Visit a player. During the day, at any point before voting, you may stand up, bet any number of cards from your nest, and guess each player's animal. If you are correct, you win exclusively. Otherwise, you lose exclusively.
 
 > **Top Cat**
-> Visit a player. They will switch alignments.
+> Visit a player. They will switch alignments. If you switched a Meowfia to Farm, steal one of their eggs.
 
 > **Rag Doll**
 > Visit a player and choose another player. The player you visited will instead visit the chosen player. Learn who every player visited at night.
