@@ -36,6 +36,9 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Falcon**
 > Visit a player. Lay an egg in their nest and learn who they visited.
 
+> **Pelican**
+> Visit a player. All players that visit you visit that player instead. Lay an egg for every redirected visitor.
+
 > **Turkey**
 > Stay home. Lay an egg in the nest of each player who visits you.
 
