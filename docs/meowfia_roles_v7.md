@@ -94,6 +94,9 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Cassowary**
 > Visit a player at night. If they have any eggs in their nest, kill them.
 
+> **Fairy Penguin**
+> Visit a player and hug them. Lay an egg in your nest for every status effect active (e.g. hugged, confused, dizzy).
+
 ---
 
 ## FARM — Other Animals
