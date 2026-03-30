@@ -91,6 +91,9 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Peacock**
 > At the start of the night, players will learn that you are the Peacock. Visit a player and lay two eggs.
 
+> **Cassowary**
+> Visit a player at night. If they have any eggs in their nest, kill them.
+
 ---
 
 ## FARM — Other Animals
