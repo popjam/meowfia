@@ -82,6 +82,9 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Lovebird**
 > Visit a player. If they are the same alignment as the player they visited, lay an egg in your nest.
 
+> **Lyrebird**
+> Visit a player. Lay eggs in your nest equal to their egg count.
+
 ---
 
 ## FARM — Other Animals
