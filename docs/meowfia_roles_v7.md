@@ -31,10 +31,10 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Visit a player and choose a role. If they are that role, lay an egg in your nest.
 
 > **Eagle**
-> Visit a player. Learn who visited them and lay eggs in your nest equal to the number of visitors (excluding you).
+> Visit a player and learn which players visited them. Lay an egg in your nest for every visitor they had.
 
 > **Falcon**
-> Visit a player. Lay an egg in their nest and learn who they visited.
+> Visit a player and learn who they visited. If they visited no one, lay an egg in your nest.
 
 > **Pelican**
 > Visit a player. All players that visit you visit that player instead. Lay an egg for every redirected visitor.
