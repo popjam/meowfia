@@ -64,7 +64,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Cuckoo**
 > You are secretly the Cuckoo, but you believe you are another animal. You will perform that animal's night actions, but none of it actually happens. Instead, you visit yourself and lay an egg in your nest. Other players will see you as the Cuckoo.
 
-> **Ostrich**
+> **Emu**
 > You see yourself as Ostrich, but you are actually an unused farm role from the pool (or pigeon if there are none left). Choose someone to visit at night, you will do your actual role's action on them (if any). Other players see your real role.
 
 > **Tit**
