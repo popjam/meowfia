@@ -58,7 +58,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Chicken**
 > Visit a player and lay an egg in their nest. If anyone throws a single card at you during eggsecution, you lose (even if Farm wins).
 
-> **Brolga**
+> **Crane**
 > You will learn all of the Farm roles in play. Choose one of them — you will visit that player at night and lay an egg in their nest.
 
 > **Cuckoo**
