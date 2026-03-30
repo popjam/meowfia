@@ -56,7 +56,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > When the Goose is in the pool, winners are losers and losers are winners during scoring. Visit a player — lay an egg in both of their neighbours' nests (but not theirs).
 
 > **Chicken**
-> Visit a player and lay an egg in your nest. If anyone throws a single card at you during eggsecution, you lose (even if Farm wins).
+> Visit a player and lay an egg in their nest. If anyone throws a single card at you during eggsecution, you lose (even if Farm wins).
 
 > **Brolga**
 > You will learn all of the Farm roles in play. Choose one of them — you will visit that player at night and lay an egg in their nest.
