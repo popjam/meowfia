@@ -22,7 +22,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Visit yourself every night and learn your role. If you are still Black Swan, lay an egg in your nest.
 
 > **Ugly Duckling**
-> You appear as Meowfia to investigators. Visit a player and steal 1 egg from their nest.
+> You appear as Meowfia to investigators. Visit a player and steal all eggs from their nest.
 
 > **Kookaburra**
 > Visit a player. Learn their role and lay an egg in their nest. If anyone visits you, you will be confused.
@@ -56,7 +56,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > When the Goose is in the pool, winners are losers and losers are winners during scoring. Visit a player — lay an egg in both of their neighbours' nests (but not theirs).
 
 > **Chicken**
-> Stay at home and lay eggs in your nest equal to the number of players who visited you. If anyone throws a single card at you during eggsecution, you lose (even if Farm wins).
+> Visit a player and lay an egg in your nest. If anyone throws a single card at you during eggsecution, you lose (even if Farm wins).
 
 > **Brolga**
 > You will learn all of the Farm roles in play. Choose one of them — you will visit that player at night and lay an egg in their nest.
