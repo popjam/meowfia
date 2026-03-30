@@ -128,6 +128,9 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Gecko**
 > Choose a player at night. You immediately become a copy of their role and perform their action.
 
+> **Quokka**
+> Visit a player and give them a Wink. If you win and are dead, you gain an additional 3 eggs to your hand.
+
 ---
 
 ## MEOWFIA — Cats
