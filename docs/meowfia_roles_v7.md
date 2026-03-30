@@ -77,7 +77,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Visit a player and sing a song of three animals to them. One random player will receive an egg in their nest, and that player is one of the three animals you sang about.
 
 > **Rainbow Lorikeet**
-> Each player that visits you receives a Wink. Lay as many eggs in your nest as Winks in play.
+> Each player that visits you receives a Wink. Visit a player. If they have a Wink, lay an egg in your nest.
 
 > **Lovebird**
 > Visit a player. If they are the same alignment as the player they visited, lay an egg in your nest.
