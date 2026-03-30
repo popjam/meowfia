@@ -97,6 +97,9 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Fairy Penguin**
 > Visit a player and hug them. Lay an egg in your nest for every status effect active (e.g. hugged, confused, dizzy).
 
+> **Vogelkop**
+> Visit a player and confuse them. Lay eggs in your nest for every Meowfia-aligned player in play.
+
 ---
 
 ## FARM — Other Animals
