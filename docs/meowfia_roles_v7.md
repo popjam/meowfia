@@ -85,6 +85,9 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > **Lyrebird**
 > Visit a player. Lay eggs in your nest equal to their egg count.
 
+> **Dove**
+> Visit a player and cure any status effects they have. If they have an egg in their nest, steal it. Otherwise, lay an egg in their nest.
+
 ---
 
 ## FARM — Other Animals
