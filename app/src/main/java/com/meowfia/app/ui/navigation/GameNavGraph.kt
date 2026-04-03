@@ -13,6 +13,7 @@ import com.meowfia.app.bot.BotClaimGenerator
 import com.meowfia.app.bot.BotDayClaim
 import com.meowfia.app.bot.BotNames
 import com.meowfia.app.ui.components.generateColorProfile
+import com.meowfia.app.data.model.PreConfiguredPlayer
 import com.meowfia.app.data.model.PlayerAssignment
 import com.meowfia.app.data.model.PoolCard
 import com.meowfia.app.data.model.RoleId
@@ -46,6 +47,7 @@ sealed class MeowfiaRoute(val route: String) {
 @Composable
 fun GameNavGraph(navController: NavHostController) {
     var selectedRoles by remember { mutableStateOf(emptyList<RoleId>()) }
+    var storedPlayerSlots by remember { mutableStateOf(emptyList<PreConfiguredPlayer>()) }
     var playerCount by remember { mutableIntStateOf(6) }
     var botCount by remember { mutableIntStateOf(0) }
     var playerNames by remember { mutableStateOf(emptyList<String>()) }
@@ -72,40 +74,54 @@ fun GameNavGraph(navController: NavHostController) {
 
         composable(MeowfiaRoute.PoolSetup.route) {
             PoolSetupScreen(
-                onStartGame = { roles, count, bots ->
+                onStartGame = { roles, slots ->
                     selectedRoles = roles
-                    playerCount = count
-                    botCount = bots
+                    storedPlayerSlots = slots
+                    playerCount = slots.size
+                    botCount = slots.count { it.isBot }
+                    val humanCount = playerCount - botCount
 
-                    GameSession.startNewGame(botCount = bots)
+                    GameSession.startNewGame(botCount = botCount)
                     val pool = roles.map { PoolCard(it) }
 
-                    // Generate bot names
-                    val generatedBotNames = BotNames.pick(bots, GameSession.coordinator.randomProvider)
+                    // Generate bot names for slots that are bots without names
+                    val generatedBotNames = BotNames.pick(botCount, GameSession.coordinator.randomProvider)
                     botNames = generatedBotNames
 
-                    // Placeholder names: humans get "Player N", bots get their unique names
-                    val humanCount = count - bots
-                    val placeholderNames = (1..humanCount).map { "Player $it" } + generatedBotNames
+                    // Build player names from slots
+                    var botNameIdx = 0
+                    var humanIdx = 0
+                    val allNames = slots.mapIndexed { index, slot ->
+                        when {
+                            slot.isBot -> slot.name ?: generatedBotNames.getOrElse(botNameIdx++) { "Bot ${index + 1}" }
+                            slot.name != null -> slot.name
+                            else -> { humanIdx++; "Player $humanIdx" }
+                        }
+                    }
+                    playerNames = allNames
 
                     GameSession.coordinator.startNewRound(
                         roundNumber = roundNumber,
                         poolCards = pool,
-                        playerNames = placeholderNames,
+                        playerNames = allNames,
                         dealerSeat = 0
                     )
                     assignments = GameSession.coordinator.assignRoles()
 
-                    // Bird of Paradise: add an extra bot player
+                    // Bird of Paradise
                     if (RoleId.BIRD_OF_PARADISE in GameSession.coordinator.state.activeFlowers) {
                         val botPlayer = GameSession.coordinator.addBotPlayer("Paradise Bot")
                         GameSession.profileImages[botPlayer.id] = generateColorProfile(botPlayer.id)
                     }
 
-                    // Flag bot players and assign color profiles for bots
-                    flagBotPlayers(humanCount)
-                    for (i in humanCount until count) {
-                        GameSession.profileImages[i] = generateColorProfile(i)
+                    // Flag bots and assign profiles
+                    flagBotPlayers(slots)
+                    slots.forEachIndexed { index, slot ->
+                        if (slot.profileBitmap != null) {
+                            GameSession.profileImages[index] = slot.profileBitmap
+                        } else if (slot.isBot || GameSession.profileImages[index] == null) {
+                            GameSession.profileImages[index] = generateColorProfile(index)
+                        }
                     }
 
                     currentPlayerIndex = 0
@@ -113,8 +129,6 @@ fun GameNavGraph(navController: NavHostController) {
                     if (humanCount > 0) {
                         navController.navigate(MeowfiaRoute.PlayerRegistration.route)
                     } else {
-                        // All bots — skip registration
-                        playerNames = placeholderNames
                         navController.navigate(MeowfiaRoute.NightPhase.route)
                     }
                 }
@@ -122,40 +136,14 @@ fun GameNavGraph(navController: NavHostController) {
         }
 
         composable(MeowfiaRoute.PlayerRegistration.route) {
-            val humanCount = playerCount - botCount
+            val humanIndices = storedPlayerSlots.indices.filter { !storedPlayerSlots[it].isBot }
+            // Build human-only name list for display
+            val humanNames = humanIndices.map { playerNames.getOrElse(it) { "Player ${it + 1}" } }
             PlayerRegistrationScreen(
-                humanCount = humanCount,
+                humanCount = humanIndices.size,
                 assignments = assignments,
-                onAllRegistered = { names, profiles ->
-                    // Combine human names with bot names
-                    playerNames = names + botNames
-                    GameSession.profileImages.putAll(profiles)
-
-                    // Update the coordinator with real names
-                    val pool = selectedRoles.map { PoolCard(it) }
-                    GameSession.coordinator.startNewRound(
-                        roundNumber = roundNumber,
-                        poolCards = pool,
-                        playerNames = playerNames,
-                        dealerSeat = (roundNumber - 1) % playerNames.size
-                    )
-                    // Re-assign with same forced alignments/roles to keep assignments stable
-                    val forcedAlignments = assignments.associate { it.playerId to it.alignment }
-                    val forcedRoles = assignments.associate { it.playerId to it.roleId }
-                    assignments = GameSession.coordinator.assignRoles(
-                        forcedAlignments = forcedAlignments,
-                        forcedRoles = forcedRoles
-                    )
-
-                    // Bird of Paradise: add an extra bot player
-                    if (RoleId.BIRD_OF_PARADISE in GameSession.coordinator.state.activeFlowers) {
-                        val botPlayer = GameSession.coordinator.addBotPlayer("Paradise Bot")
-                        GameSession.profileImages[botPlayer.id] = generateColorProfile(botPlayer.id)
-                    }
-
-                    // Re-flag bot players
-                    flagBotPlayers(humanCount)
-
+                playerNames = humanNames,
+                onAllDone = {
                     currentPlayerIndex = 0
                     navController.navigate(MeowfiaRoute.NightPhase.route)
                 }
@@ -273,8 +261,7 @@ fun GameNavGraph(navController: NavHostController) {
                         GameSession.profileImages[botPlayer.id] = generateColorProfile(botPlayer.id)
                     }
 
-                    val humanCount = playerCount - botCount
-                    flagBotPlayers(humanCount)
+                    flagBotPlayers(storedPlayerSlots)
 
                     navController.navigate(MeowfiaRoute.NightPhase.route) {
                         popUpTo(MeowfiaRoute.Start.route) { inclusive = false }
@@ -308,14 +295,24 @@ fun GameNavGraph(navController: NavHostController) {
         }
 
         composable(MeowfiaRoute.RoundSummary.route) {
-            val state = GameSession.coordinator.state
+            // Capture summary data once so it's not affected by next-round state mutations
+            val summaryData = remember {
+                val state = GameSession.coordinator.state
+                SummarySnapshot(
+                    players = state.players,
+                    visitGraph = state.visitGraph,
+                    dawnReports = state.dawnReports,
+                    eliminatedPlayerId = state.eliminatedPlayerId,
+                    winningTeam = GameSession.coordinator.getWinningTeam()
+                )
+            }
             RoundSummaryScreen(
                 roundNumber = roundNumber,
-                players = state.players,
-                visitGraph = state.visitGraph,
-                dawnReports = state.dawnReports,
-                eliminatedPlayerId = state.eliminatedPlayerId,
-                winningTeam = GameSession.coordinator.getWinningTeam(),
+                players = summaryData.players,
+                visitGraph = summaryData.visitGraph,
+                dawnReports = summaryData.dawnReports,
+                eliminatedPlayerId = summaryData.eliminatedPlayerId,
+                winningTeam = summaryData.winningTeam,
                 onViewAnalysis = {
                     navController.navigate(MeowfiaRoute.PostRoundAnalysis.route)
                 },
@@ -342,8 +339,7 @@ fun GameNavGraph(navController: NavHostController) {
                     }
 
                     // Re-flag bot players
-                    val humanCount = playerCount - botCount
-                    flagBotPlayers(humanCount)
+                    flagBotPlayers(storedPlayerSlots)
 
                     // For subsequent rounds, skip registration — go straight to night
                     currentPlayerIndex = 0
@@ -361,7 +357,7 @@ fun GameNavGraph(navController: NavHostController) {
         }
 
         composable(MeowfiaRoute.PostRoundAnalysis.route) {
-            val analysis = remember { GameSession.coordinator.getPostRoundAnalysis() }
+            val analysis = remember { GameSession.coordinator.getPostRoundAnalysis(botClaims) }
             PostRoundAnalysisScreen(
                 analysis = analysis,
                 onBack = { navController.popBackStack() }
@@ -382,10 +378,19 @@ fun GameNavGraph(navController: NavHostController) {
     }
 }
 
-/** Flag players with id >= humanCount as bots. */
-private fun flagBotPlayers(humanCount: Int) {
+/** Flag players as bots based on their slot configuration. */
+private fun flagBotPlayers(slots: List<PreConfiguredPlayer>) {
     val updatedPlayers = GameSession.coordinator.state.players.map { player ->
-        player.copy(isBot = player.id >= humanCount)
+        player.copy(isBot = slots.getOrNull(player.id)?.isBot == true)
     }
     GameSession.coordinator.updatePlayers(updatedPlayers)
 }
+
+/** Frozen snapshot of round summary data to prevent leaking next-round info. */
+private data class SummarySnapshot(
+    val players: List<com.meowfia.app.data.model.Player>,
+    val visitGraph: Map<Int, Int?>,
+    val dawnReports: Map<Int, com.meowfia.app.data.model.DawnReport>,
+    val eliminatedPlayerId: Int?,
+    val winningTeam: com.meowfia.app.data.model.Alignment?
+)

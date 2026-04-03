@@ -6,6 +6,7 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.engine.ResolutionContext
 import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.roles.RoleHandler
+import com.meowfia.app.roles.TargetPreference
 
 /** Learn which animals visited your target; if none visited, lay an egg. */
 class OwlHandler : RoleHandler {
@@ -34,11 +35,13 @@ class OwlHandler : RoleHandler {
             context.addInfo(actor.id, "No animals visited ${target.name}. Egg laid in their nest.")
             context.log("${actor.name} (Owl) checks ${target.name} — no visitors. Egg laid.")
         } else {
-            val animalNames = visitors.map { it.roleId.displayName }
+            val animalNames = visitors.map { context.getCurrentRole(it.id).displayName }
             context.addInfo(actor.id, "Animals that visited ${target.name}: ${animalNames.joinToString(", ")}.")
             context.log("${actor.name} (Owl) checks ${target.name} — visitors: ${animalNames.joinToString(", ")}.")
         }
     }
+
+    override fun getTargetPreference(actor: Player) = TargetPreference.OPPOSITE_TEAM
 
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
         return context.getInfoFor(player.id)

@@ -6,6 +6,7 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.engine.ResolutionContext
 import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.roles.RoleHandler
+import com.meowfia.app.roles.TargetPreference
 
 /** Visit a player. You become their alignment. You do NOT learn your new alignment. */
 class SheepHandler : RoleHandler {
@@ -30,9 +31,12 @@ class SheepHandler : RoleHandler {
             return
         }
 
-        context.swapAlignment(actor.id, target.alignment)
-        context.log("${actor.name} (Sheep) visited ${target.name} — alignment now ${target.alignment.displayName}.")
+        val targetAlignment = context.getCurrentAlignment(target.id)
+        context.setAlignment(actor.id, targetAlignment)
+        context.log("${actor.name} (Sheep) visited ${target.name} — alignment now ${targetAlignment.displayName}.")
     }
+
+    override fun getTargetPreference(actor: Player) = TargetPreference.SAME_TEAM
 
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
         return emptyList()

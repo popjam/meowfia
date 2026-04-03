@@ -14,6 +14,9 @@ class TurkeyHandler : RoleHandler {
     override fun getNightPrompt(player: Player, allPlayers: List<Player>) =
         NightPrompt.Automatic("You stay home. You'll lay an egg in the nest of each player who visits you.")
 
+    override fun getValidTargets(player: Player, allPlayers: List<Player>): List<Player> =
+        emptyList() // Turkey stays home — no visit target
+
     override fun resolve(
         actor: Player,
         target: Player?,

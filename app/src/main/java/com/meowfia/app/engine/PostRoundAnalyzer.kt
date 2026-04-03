@@ -14,8 +14,12 @@ import com.meowfia.app.data.model.PoolSummary
 import com.meowfia.app.data.model.PostRoundAnalysis
 import com.meowfia.app.data.model.RoleChangeEntry
 import com.meowfia.app.data.model.RoleId
+import com.meowfia.app.data.model.PlayerClaimSummary
+import com.meowfia.app.data.model.SolvabilityAnalysis
 import com.meowfia.app.data.model.StatusEffectEntry
 import com.meowfia.app.data.model.VisitEntry
+import com.meowfia.app.testing.sim.ClaimData
+import com.meowfia.app.testing.sim.RoundSolver
 
 /**
  * Builds a [PostRoundAnalysis] from the completed round's [GameState] and
@@ -27,7 +31,8 @@ object PostRoundAnalyzer {
     fun analyze(
         gameState: GameState,
         context: ResolutionContext,
-        winningTeam: Alignment?
+        winningTeam: Alignment?,
+        botClaims: List<com.meowfia.app.bot.BotDayClaim> = emptyList()
     ): PostRoundAnalysis {
         val players = gameState.players
 
@@ -44,6 +49,7 @@ object PostRoundAnalyzer {
         // Player assignments (using originalRoleId for what they were dealt)
         val playerAssignments = players.map { player ->
             PlayerAssignmentSummary(
+                playerId = player.id,
                 playerName = player.name,
                 alignment = player.alignment,
                 roleName = player.originalRoleId.displayName,
@@ -77,6 +83,7 @@ object PostRoundAnalyzer {
             val targetId = gameState.visitGraph[player.id]
             val targetName = targetId?.let { id -> players.find { it.id == id }?.name }
             VisitEntry(
+                visitorId = player.id,
                 visitorName = player.name,
                 targetName = targetName
             )
@@ -91,6 +98,7 @@ object PostRoundAnalyzer {
             val isHugged = context.isHugged(actor.id)
 
             NightActionEntry(
+                playerId = actor.id,
                 playerName = actor.name,
                 roleName = actor.originalRoleId.displayName,
                 alignment = actor.alignment,
@@ -109,26 +117,28 @@ object PostRoundAnalyzer {
         }
 
         // Role changes
-        val roleSwaps = context.getRoleSwaps()
-        val roleChanges = roleSwaps.mapNotNull { (playerId, newRole) ->
+        val finalRoles = context.computeFinalRoles()
+        val roleChanges = finalRoles.mapNotNull { (playerId, newRole) ->
             val player = players.find { it.id == playerId } ?: return@mapNotNull null
             if (player.originalRoleId == newRole) return@mapNotNull null
             RoleChangeEntry(
+                playerId = playerId,
                 playerName = player.name,
                 fromRole = player.originalRoleId.displayName,
                 toRole = newRole.displayName,
-                cause = inferRoleChangeCause(playerId, roleSwaps, gameState)
+                cause = inferRoleChangeCause(playerId, gameState)
             )
         }
 
         // Alignment changes
-        val alignmentSwaps = context.getAlignmentSwaps()
-        val alignmentChanges = alignmentSwaps.mapNotNull { (playerId, newAlignment) ->
+        val finalAlignments = context.computeFinalAlignments()
+        val alignmentChanges = finalAlignments.mapNotNull { (playerId, newAlignment) ->
             val player = players.find { it.id == playerId } ?: return@mapNotNull null
             // Find original alignment from assignment (before sheep swap)
             val originalAlignment = if (newAlignment != player.alignment) player.alignment
             else return@mapNotNull null // no actual change
             AlignmentChangeEntry(
+                playerId = playerId,
                 playerName = player.name,
                 fromAlignment = originalAlignment,
                 toAlignment = newAlignment,
@@ -142,6 +152,7 @@ object PostRoundAnalyzer {
             val rawDelta = context.getEggDelta(player.id)
             val clamped = rawDelta != delta
             EggSummaryEntry(
+                playerId = player.id,
                 playerName = player.name,
                 delta = delta,
                 breakdown = buildEggBreakdown(player.id, player.name, delta, clamped, rawDelta, gameState, context)
@@ -154,23 +165,205 @@ object PostRoundAnalyzer {
             .mapNotNull { (playerId, effect) ->
                 val player = players.find { it.id == playerId } ?: return@mapNotNull null
                 StatusEffectEntry(
+                    playerId = playerId,
                     playerName = player.name,
                     effect = effect,
                     cause = effect.name.lowercase().replaceFirstChar { it.uppercase() }
                 )
             }
-            .distinctBy { it.playerName to it.effect }
+            .distinctBy { it.playerId to it.effect }
 
         // Elimination
         val eliminationSummary = gameState.eliminatedPlayerId?.let { eliminatedId ->
             val eliminated = players.find { it.id == eliminatedId } ?: return@let null
             EliminationSummary(
+                playerId = eliminatedId,
                 playerName = eliminated.name,
                 alignment = eliminated.alignment,
                 roleName = eliminated.roleId.displayName,
                 wasCorrectElimination = eliminated.alignment == Alignment.MEOWFIA
             )
         }
+
+        // Solvability analysis — build claims from actual game data
+        // Only meaningful when Farm outnumbers or equals Meowfia (Farm is trying to find cats).
+        // When Meowfia is the majority, the vote dynamic flips and deduction is irrelevant.
+        val farmCount = players.count { it.alignment == Alignment.FARM }
+        val meowCount = players.count { it.alignment == Alignment.MEOWFIA }
+
+        // Build claim summaries using actual bot claims where available
+        val botClaimMap = botClaims.associateBy { it.playerId }
+        val playerClaimSummaries = players.map { player ->
+            val botClaim = botClaimMap[player.id]
+            val isMeowfia = player.alignment == Alignment.MEOWFIA
+
+            if (botClaim != null) {
+                // Use the bot's actual claim (Farm bots are truthful, Meowfia bots lie)
+                PlayerClaimSummary(
+                    playerId = player.id,
+                    playerName = player.name,
+                    claimedRole = botClaim.claimedRole.displayName,
+                    claimedTarget = botClaim.claimedTargetName,
+                    claimedEggDelta = botClaim.claimedEggDelta,
+                    actualRole = player.roleId.displayName,
+                    actualAlignment = player.alignment.displayName,
+                    wasLying = botClaim.isLying
+                )
+            } else {
+                // Human player — use real data (assumed truthful if Farm)
+                val targetId = gameState.visitGraph[player.id]
+                val targetName = targetId?.let { id -> players.find { it.id == id }?.name }
+                val delta = context.getClampedEggDelta(player.id)
+                PlayerClaimSummary(
+                    playerId = player.id,
+                    playerName = player.name,
+                    claimedRole = if (isMeowfia) "???" else player.originalRoleId.displayName,
+                    claimedTarget = if (isMeowfia) "???" else targetName,
+                    claimedEggDelta = if (isMeowfia) 0 else delta,
+                    actualRole = player.roleId.displayName,
+                    actualAlignment = player.alignment.displayName,
+                    wasLying = isMeowfia
+                )
+            }
+        }
+
+        val solvability = try {
+            if (meowCount > farmCount || farmCount == meowCount) {
+                // Meowfia majority or even split — solvability doesn't apply
+                val reason = if (meowCount > farmCount)
+                    "Meowfia outnumbers Farm ($meowCount vs $farmCount) this round. " +
+                        "The cats control the vote, so deduction from Farm's perspective doesn't matter — " +
+                        "the Meowfia just need to coordinate to eliminate a Farm player."
+                else
+                    "Teams are evenly split ($farmCount each) this round. " +
+                        "With equal numbers, Meowfia can force a tie and the vote dynamic breaks down — " +
+                        "deduction from public information is not meaningful."
+                val skipReason = if (meowCount > farmCount)
+                    "Meowfia majority ($meowCount Meowfia, $farmCount Farm) — analysis skipped"
+                else
+                    "Even split ($farmCount each) — analysis skipped"
+                SolvabilityAnalysis(
+                    verdict = "N/A",
+                    verdictExplanation = reason,
+                    suspects = emptyList(),
+                    cleared = emptyList(),
+                    consistentWorlds = 0,
+                    totalCandidates = 0,
+                    reasons = listOf(skipReason),
+                    playerClaims = playerClaimSummaries,
+                    worldDescriptions = emptyList()
+                )
+            } else {
+                // Build claims from what players actually said, not their real roles
+                val claims = players.associate { player ->
+                    val botClaim = botClaimMap[player.id]
+                    if (botClaim != null) {
+                        // Use the bot's actual claim
+                        val claimedTargetId = players.find { it.name == botClaim.claimedTargetName }?.id
+                        player.id to ClaimData(
+                            playerId = player.id,
+                            claimedRole = botClaim.claimedRole,
+                            claimedTargetId = claimedTargetId,
+                            claimedEggDelta = botClaim.claimedEggDelta
+                        )
+                    } else {
+                        // Human: Farm assumed truthful, Meowfia unknown
+                        val targetId = gameState.visitGraph[player.id]
+                        val delta = context.getClampedEggDelta(player.id)
+                        player.id to ClaimData(
+                            playerId = player.id,
+                            claimedRole = player.originalRoleId,
+                            claimedTargetId = targetId,
+                            claimedEggDelta = delta
+                        )
+                    }
+                }
+                val dawnReports = gameState.dawnReports.values.toList().ifEmpty {
+                    players.map { p ->
+                        com.meowfia.app.data.model.DawnReport(
+                            playerId = p.id,
+                            reportedEggDelta = context.getClampedEggDelta(p.id),
+                            actualEggDelta = context.getClampedEggDelta(p.id),
+                            additionalInfo = context.getInfoFor(p.id)
+                        )
+                    }
+                }
+                val assignments = players.map { p ->
+                    com.meowfia.app.data.model.PlayerAssignment(p.id, p.alignment, p.originalRoleId)
+                }
+                val result = RoundSolver.analyze(
+                    claims = claims,
+                    pool = gameState.pool.map { it.roleId },
+                    dawnReports = dawnReports,
+                    assignments = assignments,
+                    visitGraph = gameState.visitGraph,
+                    actualVisitGraph = gameState.visitGraph,
+                    playerNames = players.associate { it.id to it.name },
+                    exhaustiveSearch = true  // thorough analysis for post-game review
+                )
+                val actualMeowfia = players.filter { it.alignment == Alignment.MEOWFIA }.map { it.id }.toSet()
+
+                val verdictExplanation = when {
+                    result.consistentWorlds == 0 ->
+                        "Someone's claims are impossible — no combination of Meowfia assignments can explain what everyone said. At least one player is definitely lying, but we can't determine exactly who from the claims alone."
+                    result.solvability == RoundSolver.Solvability.SOLVED ->
+                        "Based on what everyone claimed, there's only one possible explanation for who the Meowfia are. A careful player could figure it out."
+                    result.solvability == RoundSolver.Solvability.ACTIONABLE -> {
+                        if (result.guaranteedMeowfia.isNotEmpty()) {
+                            val names = result.guaranteedMeowfia.mapNotNull { id -> players.find { it.id == id }?.name }
+                            "The full Meowfia set isn't certain, but ${names.joinToString(" and ")} must be Meowfia in every possible scenario. Farm can safely eliminate them."
+                        } else {
+                            "Every possible explanation says there are no Meowfia this round. Farm should vote to eliminate nobody."
+                        }
+                    }
+                    result.solvability == RoundSolver.Solvability.NARROWED -> {
+                        val suspectCount = result.suspects.size
+                        "Some players can be ruled out as Meowfia based on the claims, but $suspectCount player${if (suspectCount != 1) "s" else ""} remain as suspects. The group has useful information but can't be certain."
+                    }
+                    else ->
+                        "Everyone's claims are consistent with many different Meowfia combinations. There's no way to narrow it down from public information alone — it could be anyone."
+                }
+
+                val worldDescriptions = result.consistentWorldDetails.map { meowfiaSet ->
+                    // In this world, Farm players have their claimed role, Meowfia get House Cat
+                    val assumedRoles = players.associate { p ->
+                        val name = p.name
+                        val role = if (p.id in meowfiaSet) {
+                            RoleId.HOUSE_CAT.displayName
+                        } else {
+                            claims[p.id]?.claimedRole?.displayName ?: p.originalRoleId.displayName
+                        }
+                        name to role
+                    }
+                    com.meowfia.app.data.model.WorldDescription(
+                        meowfiaNames = meowfiaSet.mapNotNull { id -> players.find { it.id == id }?.name },
+                        farmNames = players.filter { it.id !in meowfiaSet }.map { it.name },
+                        isActualWorld = meowfiaSet == actualMeowfia,
+                        assumedRoles = assumedRoles
+                    )
+                }
+
+                SolvabilityAnalysis(
+                    verdict = result.verdictLabel,
+                    verdictExplanation = verdictExplanation,
+                    suspects = result.suspects.mapNotNull { id -> players.find { it.id == id }?.name },
+                    cleared = result.cleared.mapNotNull { id -> players.find { it.id == id }?.name },
+                    consistentWorlds = result.consistentWorlds,
+                    totalCandidates = result.totalCandidates,
+                    reasons = result.reasons,
+                    playerClaims = playerClaimSummaries,
+                    suspicionRanking = result.suspicionRatings.map { (id, rating) ->
+                        val player = players.find { it.id == id }
+                        com.meowfia.app.data.model.SuspicionEntry(
+                            playerName = player?.name ?: "Player $id",
+                            percent = (rating * 100).toInt(),
+                            isActualMeowfia = player?.alignment == Alignment.MEOWFIA
+                        )
+                    }.sortedByDescending { it.percent },
+                    worldDescriptions = worldDescriptions
+                )
+            }
+        } catch (_: Exception) { null }
 
         return PostRoundAnalysis(
             roundNumber = gameState.roundNumber,
@@ -186,7 +379,8 @@ object PostRoundAnalyzer {
             visitMap = visitMap,
             eliminationSummary = eliminationSummary,
             winningTeam = winningTeam,
-            narrativeLog = context.getNarrativeLog()
+            narrativeLog = context.getNarrativeLog(),
+            solvability = solvability
         )
     }
 
@@ -328,7 +522,6 @@ object PostRoundAnalyzer {
 
     private fun inferRoleChangeCause(
         playerId: Int,
-        roleSwaps: Map<Int, RoleId>,
         gameState: GameState
     ): String {
         val player = gameState.players.find { it.id == playerId } ?: return "Unknown"

@@ -61,23 +61,65 @@ All secret information is shown one player at a time behind a tap-to-reveal gate
 
 Every role in the game is a self-contained module in the app. The night resolution engine processes all actions in a defined priority order (lays → steals → investigations → tracking → passive → self-visit), with same-tier conflicts resolved by seat order clockwise from the dealer.
 
-The v1 app ships with 11 roles:
+The app currently has 23 implemented animal roles and 18 implemented flowers:
 
-| Role | Alignment | Night Action |
-|------|-----------|--------------|
-| Pigeon | Farm (buffer) | Visit a player, lay an egg in their nest |
-| House Cat | Meowfia (buffer) | Visit a player, steal an egg, learn their role and who they visited |
-| Hawk | Farm | Investigate a player — if Meowfia, gain an egg |
-| Owl | Farm | Learn which animals visited your target; if none visited, lay an egg |
-| Eagle | Farm | Gain eggs equal to the number of visitors your target received |
-| Turkey | Farm | Stay home — lay an egg for each player who visits you |
-| Falcon | Farm | Lay an egg in the nest of whoever your target visited |
-| Mosquito | Farm | Visit a random player, lay an egg |
-| Chicken | Farm | Lay 2 eggs, but lose if anyone throws a single egg at you |
-| Tit | Farm | Visit a random Meowfia player and lay an egg in their nest |
-| Black Swan | Farm | Visit yourself — if you're still a Black Swan, gain an egg |
+#### Farm Animals (19)
 
-Pigeon and House Cat are always in the pool as buffer roles. If more players share an alignment than there are unique roles available, the extras become Pigeons or House Cats. Future updates will add more Meowfia cat roles, complex farm animals, a flower event system, and cross-cutting mechanics like winks and death.
+| Role | Night Action |
+|------|--------------|
+| Pigeon *(buffer)* | Visit a player and lay an egg in their nest |
+| Hawk | Visit a player — if Meowfia, lay an egg in your nest |
+| Owl | Visit a player — learn the animals that visited them; if none, lay an egg in their nest |
+| Eagle | Visit a player — lay eggs in your nest equal to their visitor count |
+| Turkey | Stay home — lay an egg in the nest of each player who visits you |
+| Falcon | Visit a player — lay an egg in the nest of the player they visited |
+| Mosquito | Visit a random player and lay an egg in their nest |
+| Chicken | Visit a player and lay 2 eggs in their nest — lose if anyone throws a single egg at you |
+| Tit | Visit a random Meowfia player and lay an egg in their nest |
+| Black Swan | Visit yourself and learn your role — if still Black Swan, lay an egg in your nest |
+| Blind Hawk | Visit a player — if the player they visited is Meowfia, lay an egg in your nest |
+| Kookaburra | Visit a player — learn their role and lay an egg in their nest; if anyone visits you, become confused |
+| Magpie | Learn an animal — three random players each receive an egg, one of them is the animal you learned about |
+| Lovebird | Visit a player — if they are the same alignment as who they visited, lay an egg in your nest |
+| Sheep | Visit a player — you are now their alignment |
+| Frog | Visit a player and swap animals with them — you will learn your new animal |
+| Switcheroo | Visit a player — they will swap animals with the player they visited |
+| Koala | Visit a player and confuse them — any players that visit you will become confused |
+| Sheepdog | Visit a player and hug them — if there are any Sheep in the game, you will learn who they are |
+
+#### Meowfia Animals (4)
+
+| Role | Night Action |
+|------|--------------|
+| House Cat *(buffer)* | Visit a player — learn their role and who they visited |
+| Mouser | Start with a Wink — visit a player and learn their role |
+| Floofer | Visit a player and hug them — any players that visit you will be hugged; you cannot be hugged |
+| Top Cat | Visit a player — they will switch alignments |
+
+#### Flowers (18)
+
+| Flower | Effect |
+|--------|--------|
+| Sunflower | Scan this card and spend one egg to secretly learn if a chosen player is a certain animal or not |
+| Pitcher Plant | At dawn, the app announces who visited whom — but not roles or what happened |
+| Cactus Flower | The app reveals how many Meowfia there are; if zero, the round is skipped |
+| Banksia | Players cannot talk normally — communication limited to whispering to neighbours; bird sounds and meows allowed |
+| Flannel Flower | Players must keep their eyes shut during the entire day phase |
+| Tumbleweed | All players must stand up — no assigned seats, players walk freely during discussion |
+| Bluebell | A single player may say CAW CAW to gain one egg and immediately end the day |
+| Nightshade | Next round will have a Dusk phase before Night where players discuss night plans |
+| Mulberry | Day timer starts at 30 seconds — any player may spend one egg to buy another 30 seconds |
+| Stinging Bush | The first player to physically touch another player assassinates them |
+| Moonflower | Two consecutive night phases before dawn — players act twice, dawn reports combine both nights |
+| Wolfsbane | Meowfia assignment chance is 1 in 2 instead of 1 in 3 this round |
+| Twinflower | No limit on how many players can share the same role this round |
+| Dandelion | Night actions resolve in seat order instead of tier order |
+| Wildflower | A random event happens during night — extra egg, role swap, Wink, etc. |
+| Golden Wattle | Two players may shake hands to bond — same alignment = +3 each, different = Farm −3 / Meowfia +3 |
+| Desert Pea | A player may stand up, bet eggs, scan this card, and guess each player's animal for exclusive victory |
+| Bird of Paradise | Adds an extra bot player to the game this round |
+
+Pigeon and House Cat are always in the pool as buffer roles. If more players share an alignment than there are unique roles available, the extras become Pigeons or House Cats.
 
 ### Pool Input
 

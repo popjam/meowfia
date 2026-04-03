@@ -46,15 +46,44 @@ class BotClaimGeneratorTest {
     }
 
     @Test
-    fun meowfia_bot_egg_delta_in_range() {
+    fun meowfia_bot_egg_delta_is_plausible() {
         val bot = players[2]
         val report = DawnReport(playerId = 2, reportedEggDelta = 0, actualEggDelta = 0, additionalInfo = emptyList())
         val visitGraph = mapOf(2 to 0)
 
         repeat(100) { seed ->
             val claim = BotClaimGenerator.generateClaim(bot, players, report, visitGraph, pool, RandomProvider(seed.toLong()))
-            assertThat(claim.claimedEggDelta).isIn(-1..2)
+            // With a small pool (Pigeon, House Cat, Hawk, Owl) and 4 players,
+            // plausible deltas should be non-negative and modest (0-2 typically)
+            assertThat(claim.claimedEggDelta).isAtLeast(0)
+            assertThat(claim.claimedEggDelta).isAtMost(4)
         }
+    }
+
+    @Test
+    fun meowfia_bot_egg_delta_higher_with_more_layers_in_pool() {
+        val bot = players[2]
+        val report = DawnReport(playerId = 2, reportedEggDelta = 0, actualEggDelta = 0, additionalInfo = emptyList())
+        val visitGraph = mapOf(2 to 0)
+
+        // Pool with lots of egg-laying roles
+        val bigPool = listOf(RoleId.PIGEON, RoleId.CHICKEN, RoleId.PIGEON, RoleId.MOSQUITO, RoleId.OWL)
+
+        val deltas = (0 until 100).map { seed ->
+            val claim = BotClaimGenerator.generateClaim(bot, players, report, visitGraph, bigPool, RandomProvider(seed.toLong()))
+            claim.claimedEggDelta
+        }
+        val avgDelta = deltas.average()
+
+        // With many layers in pool, average delta should be higher than with sparse pool
+        val sparsePool = listOf(RoleId.HOUSE_CAT, RoleId.HAWK)
+        val sparseDeltas = (0 until 100).map { seed ->
+            val claim = BotClaimGenerator.generateClaim(bot, players, report, visitGraph, sparsePool, RandomProvider(seed.toLong()))
+            claim.claimedEggDelta
+        }
+        val avgSparseDelta = sparseDeltas.average()
+
+        assertThat(avgDelta).isGreaterThan(avgSparseDelta)
     }
 
     @Test
@@ -75,5 +104,22 @@ class BotClaimGeneratorTest {
 
         val claim = BotClaimGenerator.generateClaim(bot, players, report, visitGraph, pool, RandomProvider(42))
         assertThat(claim.claimedTargetName).isEqualTo("myself")
+    }
+
+    @Test
+    fun hawk_claim_never_exceeds_plausible_range() {
+        // A Meowfia bot claiming Hawk should claim 0-2 eggs typically
+        // (0 or 1 from Hawk ability + maybe 1 from a visitor)
+        val bot = players[2]
+        val report = DawnReport(playerId = 2, reportedEggDelta = 0, actualEggDelta = 0, additionalInfo = emptyList())
+        val visitGraph = mapOf(2 to 0)
+        // Pool with only Hawk (no layers to give received eggs)
+        val hawkPool = listOf(RoleId.HAWK)
+
+        repeat(100) { seed ->
+            val claim = BotClaimGenerator.generateClaim(bot, players, report, visitGraph, hawkPool, RandomProvider(seed.toLong()))
+            // With no egg-layers in pool, Hawk self-eggs are 0 or 1, variation ±1, clamped to ≥0
+            assertThat(claim.claimedEggDelta).isAtMost(2)
+        }
     }
 }
