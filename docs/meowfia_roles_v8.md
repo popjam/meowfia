@@ -59,7 +59,7 @@ All roles adapted to v8 mechanics. Your hand is your nest — laying an egg in a
 > Visit a player and lay an egg in their nest. If anyone throws a single egg at you during eggsecution, you lose (even if Farm wins).
 
 > **Crane**
-> You will learn all of the Farm roles in play. Choose one of them — you will visit that player at night and lay an egg in their nest.
+> Choose an animal from the pool. If that animal is in play, visit that player and lay an egg in their nest. If not, lay an egg in your nest.
 
 > **Cuckoo**
 > You are secretly the Cuckoo, but you believe you are another animal. You will perform that animal's night actions, but none of it actually happens. Instead, you visit yourself and lay an egg in your nest. Other players will see you as the Cuckoo.
