@@ -1,6 +1,6 @@
-# MEOWFIA v6 — Adapted Roles
+# MEOWFIA v8 — Adapted Roles
 
-All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a player's nest means they draw a card from the deck into their hand; stealing or losing an egg means discarding a card from hand. The app tracks all egg changes and reports them at dawn.
+All roles adapted to v8 mechanics. Your hand is your nest — laying an egg in a player's nest means they draw a card from the deck into their hand; stealing or losing an egg means discarding a card from hand. The app tracks all egg changes and reports them at dawn.
 
 ---
 
@@ -86,7 +86,7 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Visit a player. Lay eggs in your nest equal to their egg count.
 
 > **Dove**
-> Visit a player and cure any status effects they have. If they have an egg in their nest, steal it. Otherwise, lay an egg in their nest.
+> Visit a player and cure any status effects they have. Then, lay eggs in your nest for every remaining status effect active on any player (e.g hugged, confused).
 
 > **Peacock**
 > At the start of the night, players will learn that you are the Peacock. Visit a player and lay two eggs.
@@ -135,7 +135,10 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 > Choose a player at night. You immediately become a copy of their role and perform their action.
 
 > **Quokka**
-> Visit a player and give them a Wink. If you win and are dead, you gain an additional 3 eggs to your hand.
+> Visit a player and give them a Wink. If you die during the round, gain a bonus 3 eggs to your hand at the end of the round.
+
+> **Spider**
+> Visit a player. Anyone who visits that player will visit the player they visited instead, and vice versa. 
 
 ---
 
@@ -174,13 +177,13 @@ All roles adapted to v6 mechanics. Your hand is your nest — laying an egg in a
 
 ## NOTES ON ADAPTATION
 
-**Your hand is your nest.** In v6 there is no separate nest — your hand of cards serves that purpose. "Lay an egg in their nest" means they draw a card from the deck. "Steal an egg from their nest" means they discard a card from hand and you draw one. All egg language uses "nest" for thematic consistency.
+**Your hand is your nest.** In v8 there is no separate nest — your hand of cards serves that purpose. "Lay an egg in their nest" means they draw a card from the deck. "Steal an egg from their nest" means they discard a card from hand and you draw one. All egg language uses "nest" for thematic consistency.
 
 **Meowfia does not steal.** Cats are intel-and-disruption roles — they learn information, redirect visits, hug targets, or flip alignments. The only Meowfia role that steals is the **Cat Burgler**, making it a unique and high-impact card. Without a baseline steal, Meowfia players can't pad their nest to fake a Farm egg count, which increases the value of the information they gather at night.
 
-**Egg economy matters in v6.** Every egg laid or stolen is a card drawn or discarded. Cards in your nest are worth 1 point each at the end of the game, and high-value cards can be thrown for big scores. Roles that generate or steal multiple eggs (Chicken, Ugly Duckling, Cat Burgler) directly affect nest size and therefore scoring potential.
+**Egg economy matters in v8.** Every egg laid or stolen is a card drawn or discarded. Cards in your nest are worth 1 point each at the end of the game, and high-value cards can be thrown for big scores. Roles that generate or steal multiple eggs (Chicken, Ugly Duckling, Cat Burgler) directly affect nest size and therefore scoring potential.
 
-**Confusion, Hugs, Winks, and Death** all work as defined in the v6 Key Terms section. No changes were needed to these mechanics.
+**Confusion, Hugs, Winks, and Death** all work as defined in the v8 Key Terms section. No changes were needed to these mechanics.
 
 **Role-swap and alignment-swap roles** (Frog, Switcheroo, Top Cat, Sheep) work the same conceptually — the app handles the state change and reports it at dawn.
 
