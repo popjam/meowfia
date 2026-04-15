@@ -1,8 +1,8 @@
-Run code2prompt on the meowfia repository to get a full text snapshot of the codebase. Exclude build artifacts, generated files, and the .claude worktrees directory.
+Run the repo-local wrapper script to generate a full text snapshot of the repository. It resolves the git repo root from the current directory, creates `docs/` if needed, and writes the snapshot to `docs/meowfia_codebase.txt`, replacing any previous file at that path.
 
 Run this command:
 ```
-code2prompt "C:/Users/james/Desktop/stuff/stuff-large/projects/meowfia" --exclude="build,*.class,.gradle,.idea,.claude/worktrees,*.apk,*.aab,*.bin,*.jar" --output="/tmp/meowfia_codebase.txt" && cat /tmp/meowfia_codebase.txt
+bash "/Users/james/stuff-large/meowfia/scripts/codebase.sh"
 ```
 
-The cat pipes the full codebase into the conversation context via Bash stdout (persisted automatically for large outputs), bypassing the Read tool's per-call token limit. Confirm you've ingested the full codebase.
+After the command finishes, verify that `docs/meowfia_codebase.txt` was written successfully and use that file as the generated codebase snapshot.
