@@ -1,5 +1,7 @@
 package com.meowfia.app.testing.sim
 
+import com.meowfia.app.bot.BotBrain
+import com.meowfia.app.bot.BotClaimGenerator
 import com.meowfia.app.data.model.Alignment
 import com.meowfia.app.data.model.NightAction
 import com.meowfia.app.data.model.Player
@@ -8,7 +10,6 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.data.registry.RoleRegistry
 import com.meowfia.app.engine.GameCoordinator
 import com.meowfia.app.flowers.FlowerRegistry
-import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.testing.reporting.SimLogger
 import com.meowfia.app.util.RandomProvider
 
@@ -31,7 +32,8 @@ class SimEngine(private val config: SimConfig) {
         FlowerRegistry.initialize()
 
         val names = config.playerNames ?: SimConfig.DEFAULT_NAMES.take(config.playerCount)
-        val strategies = config.strategies ?: SimStrategyArchetypes.assignToPlayers(config.playerCount, random)
+        val strategies = config.strategies
+            ?: SimStrategyArchetypes.assignForDistribution(config.playerCount, config.strategyDistribution, random)
         val deck = SimDeck.create(random)
         val discard = mutableListOf<SimCard>()
 
@@ -44,7 +46,7 @@ class SimEngine(private val config: SimConfig) {
 
         // Deal starting hands
         for (sp in simPlayers) {
-            repeat(3) { if (deck.isNotEmpty()) sp.hand.add(deck.removeAt(0)) }
+            repeat(config.scoringRules.startingHandSize) { if (deck.isNotEmpty()) sp.hand.add(deck.removeAt(0)) }
         }
 
         logger.header("MEOWFIA SIMULATION — Seed: ${random.seed}")
@@ -66,6 +68,10 @@ class SimEngine(private val config: SimConfig) {
             // Accumulate metrics
             for (a in roundLog.assignments) {
                 roleAssignmentCounts[a.roleId] = (roleAssignmentCounts[a.roleId] ?: 0) + 1
+                val dawn = roundLog.dawnReports.find { it.playerId == a.playerId }
+                if (dawn != null) {
+                    roleEggTotals.getOrPut(a.roleId) { mutableListOf() }.add(dawn.actualEggDelta)
+                }
             }
 
             val mc = roundLog.meowfiaCount
@@ -80,8 +86,11 @@ class SimEngine(private val config: SimConfig) {
         return SimGameResult(
             seed = random.seed,
             config = config,
-            finalScores = simPlayers.map { it.totalScore() },
+            finalScores = simPlayers.map { sp ->
+                sp.scorePileValue() + sp.hand.size * config.scoringRules.finalCardValue + sp.bonusPoints
+            },
             strategies = strategies.map { it.name },
+            playerNames = simPlayers.map { it.name },
             roundLogs = roundLogs,
             perRoundDeltas = simPlayers.map { sp ->
                 roundLogs.map { log -> log.postScores.getOrElse(sp.id) { 0 } }
@@ -139,26 +148,23 @@ class SimEngine(private val config: SimConfig) {
             simPlayers[a.playerId].updateFromAssignment(a.alignment, a.roleId)
         }
 
-        // Draw 2 cards
+        // Draw cards per round
         for (sp in simPlayers) {
-            repeat(2) { if (deck.isNotEmpty()) sp.hand.add(deck.removeAt(0)) }
+            repeat(config.scoringRules.postRoundDrawCount) { if (deck.isNotEmpty()) sp.hand.add(deck.removeAt(0)) }
         }
 
-        // Night phase (real engine)
+        // Night phase (real engine + BotBrain targeting)
         val gameState = coordinator.state
         for (sp in simPlayers) {
-            val handler = RoleRegistry.get(sp.roleId)
-            val prompt = handler.getNightPrompt(sp.player, gameState.players)
-
-            val action: NightAction = when (prompt) {
-                is NightPrompt.PickPlayer -> {
-                    val targetId = config.forcedVisits?.get(sp.id)
-                        ?: sp.strategy.chooseNightTarget(sp, simPlayers, random)
-                        ?: random.nextInt(config.playerCount)
-                    NightAction.VisitPlayer(targetId)
-                }
-                is NightPrompt.Automatic -> NightAction.VisitRandom
-                is NightPrompt.SelfVisit -> NightAction.VisitSelf
+            val action = if (config.forcedVisits?.containsKey(sp.id) == true) {
+                NightAction.VisitPlayer(config.forcedVisits[sp.id]!!)
+            } else {
+                BotBrain.chooseNightAction(
+                    bot = sp.player,
+                    allPlayers = gameState.players,
+                    random = random,
+                    strategy = sp.strategy.toBotStrategy()
+                )
             }
             coordinator.submitNightAction(sp.id, action)
         }
@@ -166,12 +172,20 @@ class SimEngine(private val config: SimConfig) {
         // Resolution (real engine)
         val resolvedState = coordinator.resolveNight()
         log.resolutionNarrative = resolvedState.nightResults.values.map { it.narrative }.distinct()
+        log.visitGraph = resolvedState.visitGraph.mapNotNull { (k, v) -> v?.let { k to it } }.toMap()
 
         // Dawn
         val dawnReports = (0 until config.playerCount).map { pid ->
             coordinator.getDawnReport(pid)
         }
         log.dawnReports = dawnReports
+        log.confusedPlayers = dawnReports.count { it.isConfused }
+
+        // Count status effects and role swaps
+        val allStatuses = resolvedState.nightResults.values.flatMap { it.statusApplied }
+        log.huggedPlayers = allStatuses.distinctBy { it.first }.count { it.second == com.meowfia.app.data.model.StatusEffect.HUGGED }
+        log.winkPlayers = allStatuses.distinctBy { it.first }.count { it.second == com.meowfia.app.data.model.StatusEffect.HAS_WINK }
+        log.roleSwapCount = resolvedState.nightResults.values.count { it.narrative.contains("swap", ignoreCase = true) }
 
         // v6: draw or discard based on egg delta
         for (report in dawnReports) {
@@ -188,13 +202,58 @@ class SimEngine(private val config: SimConfig) {
             }
         }
 
+        // Generate claims for solvability analysis
+        val farmRolesInPool = pool.map { it.roleId }.filter { it.isFarmAnimal }
+        val claims = mutableMapOf<Int, ClaimData>()
+        for (sp in simPlayers) {
+            val claim = BotClaimGenerator.generateClaim(
+                bot = sp.player,
+                allPlayers = gameState.players,
+                dawnReport = dawnReports.find { it.playerId == sp.id }!!,
+                visitGraph = coordinator.state.visitGraph,
+                pool = farmRolesInPool,
+                random = random
+            )
+            claims[sp.id] = ClaimData(
+                playerId = sp.id,
+                claimedRole = claim.claimedRole,
+                claimedTargetId = gameState.players.find { it.name == claim.claimedTargetName }?.id,
+                claimedEggDelta = claim.claimedEggDelta
+            )
+        }
+
+        // Solvability analysis
+        log.solvability = RoundSolver.analyze(
+            claims = claims,
+            pool = pool.map { it.roleId },
+            dawnReports = dawnReports,
+            assignments = assignments,
+            visitGraph = coordinator.state.visitGraph,
+            actualVisitGraph = coordinator.state.visitGraph
+        )
+        log.solvability?.let { logger.solvability(it) }
+
+        // Pre-voting scores
+        log.preScores = simPlayers.map { it.totalScore() }
+
         // Voting (simulated)
-        val votingResult = votingResolver.resolve(simPlayers, assignments, dawnReports, random)
+        val votingResult = votingResolver.resolve(simPlayers, assignments, dawnReports, random, roundNum, config.roundCount, config.scoringRules)
         log.votingResult = votingResult
 
         // Scoring (simulated)
-        val scoringEvents = votingResolver.resolveScoring(simPlayers, votingResult, assignments, random)
+        val scoringEvents = votingResolver.resolveScoring(simPlayers, votingResult, assignments, random, config.scoringRules)
         log.scoringEvents = scoringEvents
+
+        // Apply hand cap if configured
+        if (config.scoringRules.handCap > 0) {
+            for (sp in simPlayers) {
+                while (sp.hand.size > config.scoringRules.handCap) {
+                    sp.hand.sortBy { it.value }
+                    discard.add(sp.hand.removeAt(0))
+                }
+            }
+        }
+
         log.postScores = simPlayers.map { it.totalScore() }
 
         // Reshuffle if low
@@ -208,9 +267,16 @@ class SimEngine(private val config: SimConfig) {
     }
 
     private fun generateRandomPool(): List<PoolCard> {
-        val base = listOf(PoolCard(RoleId.PIGEON), PoolCard(RoleId.HOUSE_CAT))
+        val allowed = config.allowedRoles
+        val base = mutableListOf<PoolCard>()
+        // Only include buffers if allowed (or if allowedRoles is null = everything allowed)
+        if (allowed == null || RoleId.PIGEON in allowed) base.add(PoolCard(RoleId.PIGEON))
+        if (allowed == null || RoleId.HOUSE_CAT in allowed) base.add(PoolCard(RoleId.HOUSE_CAT))
+
         val candidates = RoleId.entries.filter { role ->
-            role.implemented && !role.isBuffer && (config.includeFlowers || !role.isFlower)
+            role.implemented && !role.isBuffer &&
+                (config.includeFlowers || !role.isFlower) &&
+                (allowed == null || role in allowed)
         }
         val revealed = random.shuffle(candidates).take(3)
         return base + revealed.map { PoolCard(it) }

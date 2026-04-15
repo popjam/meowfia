@@ -3,41 +3,57 @@ package com.meowfia.app.testing.analysis
 import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.testing.sim.SimGameResult
 
-/** Per-role analysis — assignment frequency, egg economy, etc. */
+/** Per-role analysis — assignment frequency, egg economy, win rates. */
 object RoleMetrics {
 
     data class RoleStats(
         val roleId: RoleId,
         val timesAssigned: Int,
-        val avgEggsProduced: Double,
-        val avgEggsGainedSelf: Double,
-        val stealAttempts: Int,
-        val stealSuccesses: Int,
-        val avgVisitorsWhenPassive: Double,
-        val investigationCount: Int,
-        val correctInvestigations: Int
+        val avgEggDelta: Double,
+        val totalEggsProduced: Int,
+        val totalEggsLost: Int,
+        val teamWinRate: Double
     )
 
     fun analyze(results: List<SimGameResult>): Map<RoleId, RoleStats> {
-        val counts = mutableMapOf<RoleId, Int>()
+        data class Accumulator(
+            var timesAssigned: Int = 0,
+            var totalEggDelta: Int = 0,
+            var totalPositiveEggs: Int = 0,
+            var totalNegativeEggs: Int = 0,
+            var teamWins: Int = 0
+        )
+
+        val accumulators = mutableMapOf<RoleId, Accumulator>()
 
         for (result in results) {
-            for ((roleId, count) in result.roleAssignmentCounts) {
-                counts[roleId] = (counts[roleId] ?: 0) + count
+            for (log in result.roundLogs) {
+                val winningTeam = log.votingResult?.winningTeam
+                for (a in log.assignments) {
+                    val acc = accumulators.getOrPut(a.roleId) { Accumulator() }
+                    acc.timesAssigned++
+                    val dawn = log.dawnReports.find { it.playerId == a.playerId }
+                    if (dawn != null) {
+                        acc.totalEggDelta += dawn.actualEggDelta
+                        if (dawn.actualEggDelta > 0) acc.totalPositiveEggs += dawn.actualEggDelta
+                        if (dawn.actualEggDelta < 0) acc.totalNegativeEggs += -dawn.actualEggDelta
+                    }
+                    if (winningTeam != null && a.alignment == winningTeam) {
+                        acc.teamWins++
+                    }
+                }
             }
         }
 
-        return counts.map { (roleId, total) ->
+        return accumulators.map { (roleId, acc) ->
+            val safe = acc.timesAssigned.coerceAtLeast(1)
             roleId to RoleStats(
                 roleId = roleId,
-                timesAssigned = total,
-                avgEggsProduced = 0.0, // TODO: track from resolution context
-                avgEggsGainedSelf = 0.0,
-                stealAttempts = 0,
-                stealSuccesses = 0,
-                avgVisitorsWhenPassive = 0.0,
-                investigationCount = 0,
-                correctInvestigations = 0
+                timesAssigned = acc.timesAssigned,
+                avgEggDelta = acc.totalEggDelta.toDouble() / safe,
+                totalEggsProduced = acc.totalPositiveEggs,
+                totalEggsLost = acc.totalNegativeEggs,
+                teamWinRate = acc.teamWins.toDouble() / safe
             )
         }.toMap()
     }

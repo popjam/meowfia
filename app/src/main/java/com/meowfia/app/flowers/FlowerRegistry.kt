@@ -34,6 +34,7 @@ object FlowerRegistry {
         register(WolfsbaneHandler())
         register(TwinflowerHandler())
         register(DandelionHandler())
+        register(WildflowerHandler())
         // Social & Physical
         register(GoldenWattleHandler())
         register(DesertPeaHandler())

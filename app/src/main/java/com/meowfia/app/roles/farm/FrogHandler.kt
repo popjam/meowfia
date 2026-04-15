@@ -6,6 +6,7 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.engine.ResolutionContext
 import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.roles.RoleHandler
+import com.meowfia.app.roles.TargetPreference
 
 /** Visit a player and swap animals (roles) with them. You learn your new animal at dawn. */
 class FrogHandler : RoleHandler {
@@ -30,15 +31,16 @@ class FrogHandler : RoleHandler {
             return
         }
 
-        val actorOldRole = actor.roleId
-        val targetRole = target.roleId
+        val actorOldRole = context.getCurrentRole(actor.id)
+        val targetRole = context.getCurrentRole(target.id)
 
-        context.swapRoles(actor.id, targetRole)
-        context.swapRoles(target.id, actorOldRole)
+        context.swapRoles(actor.id, target.id)
 
         context.addInfo(actor.id, "You swapped with ${target.name}. You are now a ${targetRole.displayName}.")
-        context.log("${actor.name} (Frog) swapped roles with ${target.name}. Frog → ${targetRole.displayName}, ${target.name} → ${actorOldRole.displayName}.")
+        context.log("${actor.name} (Frog) swapped roles with ${target.name}. ${actorOldRole.displayName} → ${targetRole.displayName}, ${target.name} → ${actorOldRole.displayName}.")
     }
+
+    override fun getTargetPreference(actor: Player) = TargetPreference.OPPOSITE_TEAM
 
     override fun getDawnInfo(player: Player, context: ResolutionContext): List<String> {
         return context.getInfoFor(player.id)

@@ -6,6 +6,7 @@ import com.meowfia.app.data.model.RoleId
 import com.meowfia.app.engine.ResolutionContext
 import com.meowfia.app.roles.NightPrompt
 import com.meowfia.app.roles.RoleHandler
+import com.meowfia.app.roles.TargetPreference
 
 /** Visit a player, lay 1 egg in their nest. */
 class PigeonHandler : RoleHandler {
@@ -29,4 +30,6 @@ class PigeonHandler : RoleHandler {
         context.addEggs(target.id, 1)
         context.log("${actor.name} (Pigeon) lays egg in ${target.name}'s nest.")
     }
+
+    override fun getTargetPreference(actor: Player) = TargetPreference.SAME_TEAM
 }

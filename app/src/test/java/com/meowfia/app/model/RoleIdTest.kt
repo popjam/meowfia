@@ -12,13 +12,13 @@ class RoleIdTest {
         val implementedAnimals = RoleId.entries.filter {
             it.implemented && (it.isFarmAnimal || it.isMeowfiaAnimal)
         }
-        assertThat(implementedAnimals).hasSize(14) // 11 original + Frog, Sheep, Switcheroo
+        assertThat(implementedAnimals).hasSize(23) // 14 previous + BlindHawk, Lovebird, Kookaburra, Magpie, TopCat, Koala, Sheepdog, Mouser, Floofer
     }
 
     @Test
     fun correct_number_of_implemented_flowers() {
         val flowers = RoleId.entries.filter { it.implemented && it.isFlower }
-        assertThat(flowers).hasSize(17)
+        assertThat(flowers).hasSize(18) // 17 previous + Wildflower
     }
 
     @Test
@@ -38,8 +38,6 @@ class RoleIdTest {
 
     @Test
     fun future_roles_not_implemented() {
-        assertThat(RoleId.MOUSER.implemented).isFalse()
-        assertThat(RoleId.FLOOFER.implemented).isFalse()
         assertThat(RoleId.CAT_BURGLER.implemented).isFalse()
         assertThat(RoleId.UGLY_DUCKLING.implemented).isFalse()
     }
